@@ -1,0 +1,15 @@
+[
+  {
+    "state": "pending",
+    "model": "team-model-to-confirm",
+    "result": null,
+    "confidence": null,
+    "id": "example-prediction-001",
+    "patientId": "p001",
+    "predictedAt": null,
+    "inputsMeasuredAt": null,
+    "modelVersion": null,
+    "confidenceMeaning": null,
+    "source": "mock"
+  }
+]

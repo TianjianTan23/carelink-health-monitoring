@@ -1,0 +1,43 @@
+{
+  "name": "carelink-health-ui-demo",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "安护健康监测课程演示，全部数据虚构",
+  "scripts": {
+    "start": "vite --host 127.0.0.1",
+    "test": "node --test tests/*.test.mjs && vitest run",
+    "generate:shared": "node scripts/generate-shared.mjs",
+    "test:ios-core": "sh ios/test-core.sh",
+    "pretest": "node scripts/build-mobile-review.mjs",
+    "review:mobile": "node scripts/build-mobile-review.mjs",
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "legacy": "node server.mjs",
+    "test:legacy": "node --test tests/*.test.mjs",
+    "test:react": "vitest run",
+    "generate:tokens": "python3 scripts/generate-design-tokens.py",
+    "prebuild": "node scripts/generate-shared.mjs"
+  },
+  "engines": {
+    "node": ">=22.19"
+  },
+  "dependencies": {
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/node": "^22",
+    "typescript": "^5.9.3",
+    "vite": "8.3.5",
+    "vitest": "5.0.5",
+    "jsdom": "^27",
+    "@testing-library/react": "^16",
+    "@testing-library/user-event": "^14",
+    "@testing-library/jest-dom": "^6"
+  }
+}

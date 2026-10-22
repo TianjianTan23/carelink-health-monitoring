@@ -1,0 +1,325 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "CareLink API DRAFT — team confirmation required",
+    "version": "2.0.0-draft",
+    "description": "All response examples are fictional mock data. Authentication scheme, endpoints and final wire fields are not confirmed. No real backend deployment is included."
+  },
+  "paths": {
+    "/api/session": {
+      "get": {
+        "summary": "DRAFT: GET /api/session",
+        "description": "Proposed contract only. This does not assert the endpoint exists on the team FastAPI server.",
+        "responses": {
+          "200": {
+            "description": "Draft successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./schema.json#/$defs/Session"
+                },
+                "examples": {
+                  "fictional": {
+                    "externalValue": "./api-examples/session.json"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Not authorized"
+          },
+          "500": {
+            "description": "Backend failure"
+          }
+        }
+      }
+    },
+    "/api/patients": {
+      "get": {
+        "summary": "DRAFT: GET /api/patients",
+        "description": "Proposed contract only. This does not assert the endpoint exists on the team FastAPI server.",
+        "responses": {
+          "200": {
+            "description": "Draft successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "./schema.json#/$defs/Patient"
+                  }
+                },
+                "examples": {
+                  "fictional": {
+                    "externalValue": "./api-examples/patients.json"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Not authorized"
+          },
+          "500": {
+            "description": "Backend failure"
+          },
+          "204": {
+            "description": "Empty list; client treats it as []"
+          }
+        }
+      }
+    },
+    "/api/patients/{id}": {
+      "get": {
+        "summary": "DRAFT: GET /api/patients/{id}",
+        "description": "Proposed contract only. This does not assert the endpoint exists on the team FastAPI server.",
+        "responses": {
+          "200": {
+            "description": "Draft successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./schema.json#/$defs/Patient"
+                },
+                "examples": {
+                  "fictional": {
+                    "externalValue": "./api-examples/patient.json"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Not authorized"
+          },
+          "500": {
+            "description": "Backend failure"
+          },
+          "404": {
+            "description": "Patient not found or not visible"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/patients/{id}/readings": {
+      "get": {
+        "summary": "DRAFT: GET /api/patients/{id}/readings",
+        "description": "Proposed contract only. This does not assert the endpoint exists on the team FastAPI server.",
+        "responses": {
+          "200": {
+            "description": "Draft successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "./schema.json#/$defs/SensorReading"
+                  }
+                },
+                "examples": {
+                  "fictional": {
+                    "externalValue": "./api-examples/readings.json"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Not authorized"
+          },
+          "500": {
+            "description": "Backend failure"
+          },
+          "204": {
+            "description": "Empty list; client treats it as []"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "minutes",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "const": 10
+            }
+          }
+        ]
+      }
+    },
+    "/api/patients/{id}/predictions": {
+      "get": {
+        "summary": "DRAFT: GET /api/patients/{id}/predictions",
+        "description": "Proposed contract only. This does not assert the endpoint exists on the team FastAPI server.",
+        "responses": {
+          "200": {
+            "description": "Draft successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "./schema.json#/$defs/Prediction"
+                  }
+                },
+                "examples": {
+                  "fictional": {
+                    "externalValue": "./api-examples/predictions.json"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Not authorized"
+          },
+          "500": {
+            "description": "Backend failure"
+          },
+          "204": {
+            "description": "Empty list; client treats it as []"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/alerts": {
+      "get": {
+        "summary": "DRAFT: GET /api/alerts",
+        "description": "Proposed contract only. This does not assert the endpoint exists on the team FastAPI server.",
+        "responses": {
+          "200": {
+            "description": "Draft successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "./schema.json#/$defs/Alert"
+                  }
+                },
+                "examples": {
+                  "fictional": {
+                    "externalValue": "./api-examples/alerts.json"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Not authorized"
+          },
+          "500": {
+            "description": "Backend failure"
+          },
+          "204": {
+            "description": "Empty list; client treats it as []"
+          }
+        }
+      }
+    },
+    "/api/alerts/{id}/acknowledgement": {
+      "post": {
+        "summary": "DRAFT: POST /api/alerts/{id}/acknowledgement",
+        "description": "Proposed contract only. This does not assert the endpoint exists on the team FastAPI server.",
+        "responses": {
+          "200": {
+            "description": "Draft successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./schema.json#/$defs/Alert"
+                },
+                "examples": {
+                  "fictional": {
+                    "externalValue": "./api-examples/acknowledgement.json"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Not authorized"
+          },
+          "500": {
+            "description": "Backend failure"
+          },
+          "409": {
+            "description": "Resolved or conflicting alert; reload state"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "maxProperties": 0
+              },
+              "example": {}
+            }
+          }
+        }
+      }
+    }
+  }
+}

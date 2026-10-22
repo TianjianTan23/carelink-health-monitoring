@@ -1,0 +1,15 @@
+{
+  "mode": "mock",
+  "baseUrl": "",
+  "apiConfirmed": false,
+  "staleAfterSeconds": 30,
+  "endpoints": {
+    "session": "/api/session",
+    "patients": "/api/patients",
+    "patient": "/api/patients/{id}",
+    "readings": "/api/patients/{id}/readings?minutes=10",
+    "predictions": "/api/patients/{id}/predictions",
+    "alerts": "/api/alerts",
+    "acknowledge": "/api/alerts/{id}/acknowledgement"
+  }
+}

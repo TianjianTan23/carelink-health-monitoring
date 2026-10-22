@@ -1,0 +1,19 @@
+{
+  "hr": {
+    "severeLow": 45,
+    "mildLow": 60,
+    "mildHigh": 100,
+    "severeHigh": 130
+  },
+  "spo2": {
+    "severeLow": 90,
+    "mildLow": 95
+  },
+  "temp": {
+    "severeLow": 34,
+    "mildLow": 35.5,
+    "mildHigh": 37.5,
+    "severeHigh": 39
+  },
+  "staleAfterSeconds": 30
+}

@@ -1,0 +1,15 @@
+{
+  "id": "example-alert-001",
+  "patientId": "p001",
+  "type": "fall",
+  "severity": "red",
+  "occurredAt": "2026-10-20T03:29:15.000Z",
+  "updatedAt": "2026-10-20T03:30:00.100Z",
+  "status": "acknowledged",
+  "conditionActive": true,
+  "acknowledgedAt": "2026-10-20T03:30:00.100Z",
+  "acknowledgedBy": "demo-clinician",
+  "resolvedAt": null,
+  "summary": "Fictitious fall event for contract illustration only",
+  "source": "mock"
+}

@@ -1,0 +1,70 @@
+{
+  "version": 2,
+  "notes": "CareLink existing green brand retained. Apple-inspired local code refinement: shared spacing, typography and corners. Native uses Dynamic Type and SF Symbols; Web uses system fonts. Dark palette remains a local code design.",
+  "light": {
+    "bg": "#f6f8f7",
+    "surface": "#ffffff",
+    "ink": "#233e38",
+    "muted": "#62776f",
+    "line": "#e4ebe7",
+    "brand": "#197b6e",
+    "mint": "#e8f3ee",
+    "red": "#c75c53",
+    "red-bg": "#fcf0ed",
+    "yellow": "#ac7a2b",
+    "yellow-bg": "#fcf6e9",
+    "green": "#28826b",
+    "green-bg": "#eaf4ee",
+    "unknown": "#7a8790",
+    "unknown-bg": "#eff2f4",
+    "sidebar": "#f9fbfa",
+    "topbar": "#ffffffde",
+    "surface-translucent": "#ffffff66",
+    "segmented": "#edf1ee",
+    "on-brand": "#ffffff"
+  },
+  "dark": {
+    "bg": "#13231f",
+    "surface": "#20342e",
+    "ink": "#e6f3ed",
+    "muted": "#a9bfb5",
+    "line": "#385047",
+    "brand": "#78d7bf",
+    "mint": "#264c41",
+    "red": "#f39b91",
+    "red-bg": "#4c2e2b",
+    "yellow": "#e8bc72",
+    "yellow-bg": "#483e27",
+    "green": "#7bd8b6",
+    "green-bg": "#233f34",
+    "unknown": "#b9c8c3",
+    "unknown-bg": "#2c3e36",
+    "sidebar": "#192b24",
+    "topbar": "#20342ede",
+    "surface-translucent": "#20342e66",
+    "segmented": "#172d24",
+    "on-brand": "#13231f"
+  },
+  "spacing": [
+    4,
+    8,
+    12,
+    16,
+    20,
+    24,
+    32,
+    40,
+    48
+  ],
+  "radii": {
+    "control": 10,
+    "card": 18,
+    "dialog": 24
+  },
+  "typography": {
+    "caption": 12,
+    "body": 14,
+    "heading": 19,
+    "title": 32
+  }
+}

@@ -1,0 +1,543 @@
+// Generated from shared/*.json. Run npm run generate:shared after editing fixtures.
+export const DEMO_PATIENTS = [
+  {
+    "id": "p001",
+    "name": "林知秋",
+    "age": 76,
+    "sex": "女",
+    "bed": "201-01",
+    "history": "高血压病史；定期随访。",
+    "color": "mint",
+    "scenario": "fall",
+    "admittedAt": "2026-10-12",
+    "allergies": "未记录（演示）",
+    "reading": {
+      "patientId": "p001",
+      "deviceId": "esp32-01",
+      "measuredAt": "2026-10-20T03:30:00.000Z",
+      "receivedAt": "2026-10-20T03:30:00.100Z",
+      "connected": true,
+      "metrics": {
+        "hr": {
+          "value": 73,
+          "quality": "good"
+        },
+        "spo2": {
+          "value": 98,
+          "quality": "good"
+        },
+        "temp": {
+          "value": 36.4,
+          "quality": "good"
+        }
+      },
+      "fall": {
+        "active": true,
+        "quality": "good",
+        "eventAt": "2026-10-20T03:29:15.000Z"
+      },
+      "raw": {
+        "accel_m_s2": {
+          "x": 3.4,
+          "y": 9.6,
+          "z": 1.2
+        },
+        "gyro_deg_s": {
+          "x": 0.1,
+          "y": 0.2,
+          "z": 0.1
+        },
+        "ir": 82000,
+        "red": 69000,
+        "object_temperature_c": 36.4,
+        "ambient_temperature_c": 24.1
+      },
+      "ai": {
+        "state": "not_connected",
+        "model": null,
+        "result": null,
+        "confidence": null
+      },
+      "source": "mock",
+      "scenario": "fall"
+    }
+  },
+  {
+    "id": "p002",
+    "name": "周远山",
+    "age": 81,
+    "sex": "男",
+    "bed": "201-02",
+    "history": "慢性呼吸系统疾病史；需关注日常活动。",
+    "color": "sand",
+    "scenario": "severe",
+    "admittedAt": "2026-10-12",
+    "allergies": "未记录（演示）",
+    "reading": {
+      "patientId": "p002",
+      "deviceId": "esp32-02",
+      "measuredAt": "2026-10-20T03:30:00.000Z",
+      "receivedAt": "2026-10-20T03:30:00.100Z",
+      "connected": true,
+      "metrics": {
+        "hr": {
+          "value": 74,
+          "quality": "good"
+        },
+        "spo2": {
+          "value": 87,
+          "quality": "good"
+        },
+        "temp": {
+          "value": 36.5,
+          "quality": "good"
+        }
+      },
+      "fall": {
+        "active": false,
+        "quality": "good",
+        "eventAt": null
+      },
+      "raw": {
+        "accel_m_s2": {
+          "x": 0.12,
+          "y": 0.08,
+          "z": 9.79
+        },
+        "gyro_deg_s": {
+          "x": 0.1,
+          "y": 0.2,
+          "z": 0.1
+        },
+        "ir": 82000,
+        "red": 69000,
+        "object_temperature_c": 36.5,
+        "ambient_temperature_c": 24.1
+      },
+      "ai": {
+        "state": "not_connected",
+        "model": null,
+        "result": null,
+        "confidence": null
+      },
+      "source": "mock",
+      "scenario": "severe"
+    }
+  },
+  {
+    "id": "p003",
+    "name": "陈静禾",
+    "age": 72,
+    "sex": "女",
+    "bed": "202-01",
+    "history": "术后康复期；步行时使用辅助器具。",
+    "color": "lavender",
+    "scenario": "mild",
+    "admittedAt": "2026-10-12",
+    "allergies": "未记录（演示）",
+    "reading": {
+      "patientId": "p003",
+      "deviceId": "esp32-03",
+      "measuredAt": "2026-10-20T03:30:00.000Z",
+      "receivedAt": "2026-10-20T03:30:00.100Z",
+      "connected": true,
+      "metrics": {
+        "hr": {
+          "value": 108,
+          "quality": "good"
+        },
+        "spo2": {
+          "value": 98,
+          "quality": "good"
+        },
+        "temp": {
+          "value": 36.5,
+          "quality": "good"
+        }
+      },
+      "fall": {
+        "active": false,
+        "quality": "good",
+        "eventAt": null
+      },
+      "raw": {
+        "accel_m_s2": {
+          "x": 0.12,
+          "y": 0.08,
+          "z": 9.79
+        },
+        "gyro_deg_s": {
+          "x": 0.1,
+          "y": 0.2,
+          "z": 0.1
+        },
+        "ir": 82000,
+        "red": 69000,
+        "object_temperature_c": 36.5,
+        "ambient_temperature_c": 24.1
+      },
+      "ai": {
+        "state": "not_connected",
+        "model": null,
+        "result": null,
+        "confidence": null
+      },
+      "source": "mock",
+      "scenario": "mild"
+    }
+  },
+  {
+    "id": "p004",
+    "name": "许望舒",
+    "age": 68,
+    "sex": "女",
+    "bed": "202-02",
+    "history": "无特殊既往史（演示档案）。",
+    "color": "rose",
+    "scenario": "normal",
+    "admittedAt": "2026-10-12",
+    "allergies": "未记录（演示）",
+    "reading": {
+      "patientId": "p004",
+      "deviceId": "esp32-04",
+      "measuredAt": "2026-10-20T03:30:00.000Z",
+      "receivedAt": "2026-10-20T03:30:00.100Z",
+      "connected": true,
+      "metrics": {
+        "hr": {
+          "value": 76,
+          "quality": "good"
+        },
+        "spo2": {
+          "value": 98,
+          "quality": "good"
+        },
+        "temp": {
+          "value": 36.6,
+          "quality": "good"
+        }
+      },
+      "fall": {
+        "active": false,
+        "quality": "good",
+        "eventAt": null
+      },
+      "raw": {
+        "accel_m_s2": {
+          "x": 0.12,
+          "y": 0.08,
+          "z": 9.79
+        },
+        "gyro_deg_s": {
+          "x": 0.1,
+          "y": 0.2,
+          "z": 0.1
+        },
+        "ir": 82000,
+        "red": 69000,
+        "object_temperature_c": 36.6,
+        "ambient_temperature_c": 24.1
+      },
+      "ai": {
+        "state": "not_connected",
+        "model": null,
+        "result": null,
+        "confidence": null
+      },
+      "source": "mock",
+      "scenario": "normal"
+    }
+  },
+  {
+    "id": "p005",
+    "name": "沈怀川",
+    "age": 79,
+    "sex": "男",
+    "bed": "203-01",
+    "history": "高血压病史；规律复诊。",
+    "color": "blue",
+    "scenario": "normal",
+    "admittedAt": "2026-10-12",
+    "allergies": "未记录（演示）",
+    "reading": {
+      "patientId": "p005",
+      "deviceId": "esp32-05",
+      "measuredAt": "2026-10-20T03:30:00.000Z",
+      "receivedAt": "2026-10-20T03:30:00.100Z",
+      "connected": true,
+      "metrics": {
+        "hr": {
+          "value": 77,
+          "quality": "good"
+        },
+        "spo2": {
+          "value": 98,
+          "quality": "good"
+        },
+        "temp": {
+          "value": 36.6,
+          "quality": "good"
+        }
+      },
+      "fall": {
+        "active": false,
+        "quality": "good",
+        "eventAt": null
+      },
+      "raw": {
+        "accel_m_s2": {
+          "x": 0.12,
+          "y": 0.08,
+          "z": 9.79
+        },
+        "gyro_deg_s": {
+          "x": 0.1,
+          "y": 0.2,
+          "z": 0.1
+        },
+        "ir": 82000,
+        "red": 69000,
+        "object_temperature_c": 36.6,
+        "ambient_temperature_c": 24.1
+      },
+      "ai": {
+        "state": "not_connected",
+        "model": null,
+        "result": null,
+        "confidence": null
+      },
+      "source": "mock",
+      "scenario": "normal"
+    }
+  },
+  {
+    "id": "p006",
+    "name": "陆青禾",
+    "age": 74,
+    "sex": "女",
+    "bed": "203-02",
+    "history": "糖尿病病史；日常随访中。",
+    "color": "peach",
+    "scenario": "warm",
+    "admittedAt": "2026-10-12",
+    "allergies": "未记录（演示）",
+    "reading": {
+      "patientId": "p006",
+      "deviceId": "esp32-06",
+      "measuredAt": "2026-10-20T03:30:00.000Z",
+      "receivedAt": "2026-10-20T03:30:00.100Z",
+      "connected": true,
+      "metrics": {
+        "hr": {
+          "value": 78,
+          "quality": "good"
+        },
+        "spo2": {
+          "value": 98,
+          "quality": "good"
+        },
+        "temp": {
+          "value": 38.1,
+          "quality": "good"
+        }
+      },
+      "fall": {
+        "active": false,
+        "quality": "good",
+        "eventAt": null
+      },
+      "raw": {
+        "accel_m_s2": {
+          "x": 0.12,
+          "y": 0.08,
+          "z": 9.79
+        },
+        "gyro_deg_s": {
+          "x": 0.1,
+          "y": 0.2,
+          "z": 0.1
+        },
+        "ir": 82000,
+        "red": 69000,
+        "object_temperature_c": 38.1,
+        "ambient_temperature_c": 24.1
+      },
+      "ai": {
+        "state": "not_connected",
+        "model": null,
+        "result": null,
+        "confidence": null
+      },
+      "source": "mock",
+      "scenario": "warm"
+    }
+  },
+  {
+    "id": "p007",
+    "name": "顾云舟",
+    "age": 83,
+    "sex": "男",
+    "bed": "204-01",
+    "history": "关节活动受限；日常活动需陪同。",
+    "color": "sage",
+    "scenario": "poor",
+    "admittedAt": "2026-10-12",
+    "allergies": "未记录（演示）",
+    "reading": {
+      "patientId": "p007",
+      "deviceId": "esp32-07",
+      "measuredAt": "2026-10-20T03:30:00.000Z",
+      "receivedAt": "2026-10-20T03:30:00.100Z",
+      "connected": true,
+      "metrics": {
+        "hr": {
+          "value": 148,
+          "quality": "poor"
+        },
+        "spo2": {
+          "value": 82,
+          "quality": "poor"
+        },
+        "temp": {
+          "value": 36.7,
+          "quality": "good"
+        }
+      },
+      "fall": {
+        "active": false,
+        "quality": "good",
+        "eventAt": null
+      },
+      "raw": {
+        "accel_m_s2": {
+          "x": 0.12,
+          "y": 0.08,
+          "z": 9.79
+        },
+        "gyro_deg_s": {
+          "x": 0.1,
+          "y": 0.2,
+          "z": 0.1
+        },
+        "ir": 82000,
+        "red": 69000,
+        "object_temperature_c": 36.7,
+        "ambient_temperature_c": 24.1
+      },
+      "ai": {
+        "state": "not_connected",
+        "model": null,
+        "result": null,
+        "confidence": null
+      },
+      "source": "mock",
+      "scenario": "poor"
+    }
+  },
+  {
+    "id": "p008",
+    "name": "苏晚晴",
+    "age": 70,
+    "sex": "女",
+    "bed": "204-02",
+    "history": "无特殊既往史（演示档案）。",
+    "color": "lavender",
+    "scenario": "normal",
+    "admittedAt": "2026-10-12",
+    "allergies": "未记录（演示）",
+    "reading": {
+      "patientId": "p008",
+      "deviceId": "esp32-08",
+      "measuredAt": "2026-10-20T03:30:00.000Z",
+      "receivedAt": "2026-10-20T03:30:00.100Z",
+      "connected": true,
+      "metrics": {
+        "hr": {
+          "value": 80,
+          "quality": "good"
+        },
+        "spo2": {
+          "value": 98,
+          "quality": "good"
+        },
+        "temp": {
+          "value": 36.7,
+          "quality": "good"
+        }
+      },
+      "fall": {
+        "active": false,
+        "quality": "good",
+        "eventAt": null
+      },
+      "raw": {
+        "accel_m_s2": {
+          "x": 0.12,
+          "y": 0.08,
+          "z": 9.79
+        },
+        "gyro_deg_s": {
+          "x": 0.1,
+          "y": 0.2,
+          "z": 0.1
+        },
+        "ir": 82000,
+        "red": 69000,
+        "object_temperature_c": 36.7,
+        "ambient_temperature_c": 24.1
+      },
+      "ai": {
+        "state": "not_connected",
+        "model": null,
+        "result": null,
+        "confidence": null
+      },
+      "source": "mock",
+      "scenario": "normal"
+    }
+  }
+];
+export const DEMO_RULES = {
+  "hr": {
+    "severeLow": 45,
+    "mildLow": 60,
+    "mildHigh": 100,
+    "severeHigh": 130
+  },
+  "spo2": {
+    "severeLow": 90,
+    "mildLow": 95
+  },
+  "temp": {
+    "severeLow": 34,
+    "mildLow": 35.5,
+    "mildHigh": 37.5,
+    "severeHigh": 39
+  },
+  "staleAfterSeconds": 30
+};
+export const DEMO_SESSIONS = {
+  "pro": {
+    "userId": "demo-clinician",
+    "role": "clinician",
+    "mode": "pro",
+    "patientIds": [
+      "p001",
+      "p002",
+      "p003",
+      "p004",
+      "p005",
+      "p006",
+      "p007",
+      "p008"
+    ]
+  },
+  "basic": {
+    "userId": "demo-family",
+    "role": "family",
+    "mode": "basic",
+    "patientIds": [
+      "p004"
+    ]
+  }
+};

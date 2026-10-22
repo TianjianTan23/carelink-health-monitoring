@@ -1,0 +1,513 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://carelink.example/schema/v2-draft",
+  "title": "CareLink shared JSON contract v2 DRAFT — endpoints unconfirmed",
+  "$defs": {
+    "Metric": {
+      "type": "object",
+      "required": [
+        "value",
+        "quality"
+      ],
+      "properties": {
+        "value": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "quality": {
+          "enum": [
+            "good",
+            "poor",
+            "unavailable",
+            "unknown"
+          ]
+        },
+        "available": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Vector3": {
+      "type": "object",
+      "required": [
+        "x",
+        "y",
+        "z"
+      ],
+      "properties": {
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "z": {
+          "type": "number"
+        }
+      }
+    },
+    "Reading": {
+      "type": "object",
+      "required": [
+        "patientId",
+        "deviceId",
+        "measuredAt",
+        "receivedAt",
+        "connected",
+        "metrics",
+        "fall",
+        "raw",
+        "ai",
+        "source"
+      ],
+      "properties": {
+        "patientId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "deviceId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "measuredAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "receivedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "connected": {
+          "type": "boolean"
+        },
+        "metrics": {
+          "type": "object",
+          "required": [
+            "hr",
+            "spo2",
+            "temp"
+          ],
+          "properties": {
+            "hr": {
+              "$ref": "#/$defs/Metric"
+            },
+            "spo2": {
+              "$ref": "#/$defs/Metric"
+            },
+            "temp": {
+              "$ref": "#/$defs/Metric"
+            }
+          }
+        },
+        "fall": {
+          "type": "object",
+          "required": [
+            "active",
+            "quality"
+          ],
+          "properties": {
+            "active": {
+              "type": "boolean"
+            },
+            "quality": {
+              "enum": [
+                "good",
+                "poor",
+                "unavailable",
+                "unknown"
+              ]
+            },
+            "eventAt": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date-time"
+            }
+          }
+        },
+        "raw": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "required": [
+            "accel_m_s2",
+            "gyro_deg_s"
+          ],
+          "properties": {
+            "accel_m_s2": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Vector3"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "gyro_deg_s": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Vector3"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "ir": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "red": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "object_temperature_c": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "ambient_temperature_c": {
+              "type": [
+                "number",
+                "null"
+              ]
+            }
+          }
+        },
+        "ai": {
+          "$ref": "#/$defs/Prediction"
+        },
+        "source": {
+          "enum": [
+            "mock",
+            "device",
+            "backend"
+          ]
+        },
+        "scenario": {
+          "type": "string"
+        },
+        "assessment": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BackendAssessment"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "Patient": {
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "age",
+        "sex",
+        "bed",
+        "history",
+        "color",
+        "admittedAt",
+        "allergies",
+        "reading"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "age": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sex": {
+          "type": "string"
+        },
+        "bed": {
+          "type": "string"
+        },
+        "history": {
+          "type": "string"
+        },
+        "color": {
+          "type": "string"
+        },
+        "admittedAt": {
+          "type": "string",
+          "format": "date"
+        },
+        "allergies": {
+          "type": "string"
+        },
+        "scenario": {
+          "type": "string"
+        },
+        "reading": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Reading"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "Session": {
+      "type": "object",
+      "required": [
+        "userId",
+        "role",
+        "mode",
+        "patientIds"
+      ],
+      "properties": {
+        "userId": {
+          "type": "string"
+        },
+        "role": {
+          "enum": [
+            "clinician",
+            "patient",
+            "family"
+          ]
+        },
+        "mode": {
+          "enum": [
+            "pro",
+            "basic"
+          ]
+        },
+        "patientIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "Prediction": {
+      "type": "object",
+      "required": [
+        "state",
+        "model",
+        "confidence"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "not_connected",
+            "pending",
+            "available",
+            "failed",
+            "unavailable"
+          ]
+        },
+        "id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "patientId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "predictedAt": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "inputsMeasuredAt": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "model": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "modelVersion": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "result": {},
+        "confidence": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "confidenceMeaning": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source": {
+          "enum": [
+            "mock",
+            "device",
+            "backend"
+          ]
+        }
+      }
+    },
+    "BackendAssessment": {
+      "type": "object",
+      "required": [
+        "level",
+        "reasons",
+        "assessedAt",
+        "ruleSetId",
+        "origin"
+      ],
+      "properties": {
+        "level": {
+          "enum": [
+            "red",
+            "yellow",
+            "green",
+            "unknown"
+          ]
+        },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "assessedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "ruleSetId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "origin": {
+          "const": "backend"
+        }
+      }
+    },
+    "SensorReading": {
+      "$ref": "#/$defs/Reading"
+    },
+    "Alert": {
+      "type": "object",
+      "required": [
+        "id",
+        "patientId",
+        "type",
+        "severity",
+        "occurredAt",
+        "updatedAt",
+        "status",
+        "conditionActive",
+        "acknowledgedAt",
+        "acknowledgedBy",
+        "resolvedAt",
+        "summary",
+        "source"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "patientId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "severity": {
+          "enum": [
+            "red",
+            "yellow",
+            "green",
+            "unknown"
+          ]
+        },
+        "occurredAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "status": {
+          "enum": [
+            "new",
+            "acknowledged",
+            "resolved"
+          ]
+        },
+        "conditionActive": {
+          "type": "boolean"
+        },
+        "acknowledgedAt": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "acknowledgedBy": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "resolvedAt": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "source": {
+          "enum": [
+            "mock",
+            "device",
+            "backend"
+          ]
+        }
+      }
+    }
+  }
+}

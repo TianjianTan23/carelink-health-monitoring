@@ -1,0 +1,70 @@
+{
+  "id": "p001",
+  "name": "林知秋",
+  "age": 76,
+  "sex": "女",
+  "bed": "201-01",
+  "history": "高血压病史；定期随访。",
+  "color": "mint",
+  "scenario": "fall",
+  "admittedAt": "2026-10-12",
+  "allergies": "未记录（演示）",
+  "reading": {
+    "patientId": "p001",
+    "deviceId": "esp32-01",
+    "measuredAt": "2026-10-20T03:30:00.000Z",
+    "receivedAt": "2026-10-20T03:30:00.100Z",
+    "connected": true,
+    "metrics": {
+      "hr": {
+        "value": 73,
+        "quality": "good"
+      },
+      "spo2": {
+        "value": 98,
+        "quality": "good"
+      },
+      "temp": {
+        "value": 36.4,
+        "quality": "good"
+      }
+    },
+    "fall": {
+      "active": true,
+      "quality": "good",
+      "eventAt": "2026-10-20T03:29:15.000Z"
+    },
+    "raw": {
+      "accel_m_s2": {
+        "x": 3.4,
+        "y": 9.6,
+        "z": 1.2
+      },
+      "gyro_deg_s": {
+        "x": 0.1,
+        "y": 0.2,
+        "z": 0.1
+      },
+      "ir": 82000,
+      "red": 69000,
+      "object_temperature_c": 36.4,
+      "ambient_temperature_c": 24.1
+    },
+    "ai": {
+      "state": "not_connected",
+      "model": null,
+      "result": null,
+      "confidence": null,
+      "id": null,
+      "patientId": "p001",
+      "predictedAt": null,
+      "inputsMeasuredAt": null,
+      "modelVersion": null,
+      "confidenceMeaning": null,
+      "source": "mock"
+    },
+    "source": "mock",
+    "scenario": "fall",
+    "assessment": null
+  }
+}

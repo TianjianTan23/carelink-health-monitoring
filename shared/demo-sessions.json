@@ -1,0 +1,25 @@
+{
+  "pro": {
+    "userId": "demo-clinician",
+    "role": "clinician",
+    "mode": "pro",
+    "patientIds": [
+      "p001",
+      "p002",
+      "p003",
+      "p004",
+      "p005",
+      "p006",
+      "p007",
+      "p008"
+    ]
+  },
+  "basic": {
+    "userId": "demo-family",
+    "role": "family",
+    "mode": "basic",
+    "patientIds": [
+      "p004"
+    ]
+  }
+}

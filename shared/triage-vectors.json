@@ -1,0 +1,1548 @@
+[
+  {
+    "name": "normal",
+    "now": "2026-10-20T03:30:00.000Z",
+    "reading": {
+      "patientId": "p001",
+      "deviceId": "esp32-01",
+      "measuredAt": "2026-10-20T03:30:00.000Z",
+      "receivedAt": "2026-10-20T03:30:00.100Z",
+      "connected": true,
+      "metrics": {
+        "hr": {
+          "value": 73,
+          "quality": "good"
+        },
+        "spo2": {
+          "value": 98,
+          "quality": "good"
+        },
+        "temp": {
+          "value": 36.4,
+          "quality": "good"
+        }
+      },
+      "fall": {
+        "active": false,
+        "quality": "good",
+        "eventAt": null
+      },
+      "raw": {
+        "accel_m_s2": {
+          "x": 0.12,
+          "y": 0.08,
+          "z": 9.79
+        },
+        "gyro_deg_s": {
+          "x": 0.1,
+          "y": 0.2,
+          "z": 0.1
+        },
+        "ir": 82000,
+        "red": 69000,
+        "object_temperature_c": 36.4,
+        "ambient_temperature_c": 24.1
+      },
+      "ai": {
+        "state": "not_connected",
+        "model": null,
+        "result": null,
+        "confidence": null
+      },
+      "source": "mock",
+      "scenario": "normal"
+    },
+    "expected": "green"
+  },
+  {
+    "name": "mild",
+    "now": "2026-10-20T03:30:00.000Z",
+    "reading": {
+      "patientId": "p001",
+      "deviceId": "esp32-01",
+      "measuredAt": "2026-10-20T03:30:00.000Z",
+      "receivedAt": "2026-10-20T03:30:00.100Z",
+      "connected": true,
+      "metrics": {
+        "hr": {
+          "value": 108,
+          "quality": "good"
+        },
+        "spo2": {
+          "value": 98,
+          "quality": "good"
+        },
+        "temp": {
+          "value": 36.4,
+          "quality": "good"
+        }
+      },
+      "fall": {
+        "active": false,
+        "quality": "good",
+        "eventAt": null
+      },
+      "raw": {
+        "accel_m_s2": {
+          "x": 0.12,
+          "y": 0.08,
+          "z": 9.79
+        },
+        "gyro_deg_s": {
+          "x": 0.1,
+          "y": 0.2,
+          "z": 0.1
+        },
+        "ir": 82000,
+        "red": 69000,
+        "object_temperature_c": 36.4,
+        "ambient_temperature_c": 24.1
+      },
+      "ai": {
+        "state": "not_connected",
+        "model": null,
+        "result": null,
+        "confidence": null
+      },
+      "source": "mock",
+      "scenario": "mild"
+    },
+    "expected": "yellow"
+  },
+  {
+    "name": "warm",
+    "now": "2026-10-20T03:30:00.000Z",
+    "reading": {
+      "patientId": "p001",
+      "deviceId": "esp32-01",
+      "measuredAt": "2026-10-20T03:30:00.000Z",
+      "receivedAt": "2026-10-20T03:30:00.100Z",
+      "connected": true,
+      "metrics": {
+        "hr": {
+          "value": 73,
+          "quality": "good"
+        },
+        "spo2": {
+          "value": 98,
+          "quality": "good"
+        },
+        "temp": {
+          "value": 38.1,
+          "quality": "good"
+        }
+      },
+      "fall": {
+        "active": false,
+        "quality": "good",
+        "eventAt": null
+      },
+      "raw": {
+        "accel_m_s2": {
+          "x": 0.12,
+          "y": 0.08,
+          "z": 9.79
+        },
+        "gyro_deg_s": {
+          "x": 0.1,
+          "y": 0.2,
+          "z": 0.1
+        },
+        "ir": 82000,
+        "red": 69000,
+        "object_temperature_c": 38.1,
+        "ambient_temperature_c": 24.1
+      },
+      "ai": {
+        "state": "not_connected",
+        "model": null,
+        "result": null,
+        "confidence": null
+      },
+      "source": "mock",
+      "scenario": "warm"
+    },
+    "expected": "yellow"
+  },
+  {
+    "name": "severe",
+    "now": "2026-10-20T03:30:00.000Z",
+    "reading": {
+      "patientId": "p001",
+      "deviceId": "esp32-01",
+      "measuredAt": "2026-10-20T03:30:00.000Z",
+      "receivedAt": "2026-10-20T03:30:00.100Z",
+      "connected": true,
+      "metrics": {
+        "hr": {
+          "value": 73,
+          "quality": "good"
+        },
+        "spo2": {
+          "value": 87,
+          "quality": "good"
+        },
+        "temp": {
+          "value": 36.4,
+          "quality": "good"
+        }
+      },
+      "fall": {
+        "active": false,
+        "quality": "good",
+        "eventAt": null
+      },
+      "raw": {
+        "accel_m_s2": {
+          "x": 0.12,
+          "y": 0.08,
+          "z": 9.79
+        },
+        "gyro_deg_s": {
+          "x": 0.1,
+          "y": 0.2,
+          "z": 0.1
+        },
+        "ir": 82000,
+        "red": 69000,
+        "object_temperature_c": 36.4,
+        "ambient_temperature_c": 24.1
+      },
+      "ai": {
+        "state": "not_connected",
+        "model": null,
+        "result": null,
+        "confidence": null
+      },
+      "source": "mock",
+      "scenario": "severe"
+    },
+    "expected": "red"
+  },
+  {
+    "name": "fall",
+    "now": "2026-10-20T03:30:00.000Z",
+    "reading": {
+      "patientId": "p001",
+      "deviceId": "esp32-01",
+      "measuredAt": "2026-10-20T03:30:00.000Z",
+      "receivedAt": "2026-10-20T03:30:00.100Z",
+      "connected": true,
+      "metrics": {
+        "hr": {
+          "value": 73,
+          "quality": "good"
+        },
+        "spo2": {
+          "value": 98,
+          "quality": "good"
+        },
+        "temp": {
+          "value": 36.4,
+          "quality": "good"
+        }
+      },
+      "fall": {
+        "active": true,
+        "quality": "good",
+        "eventAt": "2026-10-20T03:29:15.000Z"
+      },
+      "raw": {
+        "accel_m_s2": {
+          "x": 3.4,
+          "y": 9.6,
+          "z": 1.2
+        },
+        "gyro_deg_s": {
+          "x": 0.1,
+          "y": 0.2,
+          "z": 0.1
+        },
+        "ir": 82000,
+        "red": 69000,
+        "object_temperature_c": 36.4,
+        "ambient_temperature_c": 24.1
+      },
+      "ai": {
+        "state": "not_connected",
+        "model": null,
+        "result": null,
+        "confidence": null
+      },
+      "source": "mock",
+      "scenario": "fall"
+    },
+    "expected": "red"
+  },
+  {
+    "name": "poor",
+    "now": "2026-10-20T03:30:00.000Z",
+    "reading": {
+      "patientId": "p001",
+      "deviceId": "esp32-01",
+      "measuredAt": "2026-10-20T03:30:00.000Z",
+      "receivedAt": "2026-10-20T03:30:00.100Z",
+      "connected": true,
+      "metrics": {
+        "hr": {
+          "value": 148,
+          "quality": "poor"
+        },
+        "spo2": {
+          "value": 82,
+          "quality": "poor"
+        },
+        "temp": {
+          "value": 36.4,
+          "quality": "good"
+        }
+      },
+      "fall": {
+        "active": false,
+        "quality": "good",
+        "eventAt": null
+      },
+      "raw": {
+        "accel_m_s2": {
+          "x": 0.12,
+          "y": 0.08,
+          "z": 9.79
+        },
+        "gyro_deg_s": {
+          "x": 0.1,
+          "y": 0.2,
+          "z": 0.1
+        },
+        "ir": 82000,
+        "red": 69000,
+        "object_temperature_c": 36.4,
+        "ambient_temperature_c": 24.1
+      },
+      "ai": {
+        "state": "not_connected",
+        "model": null,
+        "result": null,
+        "confidence": null
+      },
+      "source": "mock",
+      "scenario": "poor"
+    },
+    "expected": "unknown"
+  },
+  {
+    "name": "unavailable",
+    "now": "2026-10-20T03:30:00.000Z",
+    "reading": {
+      "patientId": "p001",
+      "deviceId": "esp32-01",
+      "measuredAt": "2026-10-20T03:30:00.000Z",
+      "receivedAt": "2026-10-20T03:30:00.100Z",
+      "connected": true,
+      "metrics": {
+        "hr": {
+          "value": null,
+          "quality": "unavailable"
+        },
+        "spo2": {
+          "value": null,
+          "quality": "unavailable"
+        },
+        "temp": {
+          "value": 36.4,
+          "quality": "good"
+        }
+      },
+      "fall": {
+        "active": false,
+        "quality": "good",
+        "eventAt": null
+      },
+      "raw": {
+        "accel_m_s2": {
+          "x": 0.12,
+          "y": 0.08,
+          "z": 9.79
+        },
+        "gyro_deg_s": {
+          "x": 0.1,
+          "y": 0.2,
+          "z": 0.1
+        },
+        "ir": null,
+        "red": null,
+        "object_temperature_c": 36.4,
+        "ambient_temperature_c": 24.1
+      },
+      "ai": {
+        "state": "not_connected",
+        "model": null,
+        "result": null,
+        "confidence": null
+      },
+      "source": "mock",
+      "scenario": "unavailable"
+    },
+    "expected": "unknown"
+  },
+  {
+    "name": "offline",
+    "now": "2026-10-20T03:30:00.000Z",
+    "reading": {
+      "patientId": "p001",
+      "deviceId": "esp32-01",
+      "measuredAt": "2026-10-20T03:30:00.000Z",
+      "receivedAt": "2026-10-20T03:30:00.100Z",
+      "connected": false,
+      "metrics": {
+        "hr": {
+          "value": 73,
+          "quality": "good"
+        },
+        "spo2": {
+          "value": 98,
+          "quality": "good"
+        },
+        "temp": {
+          "value": 36.4,
+          "quality": "good"
+        }
+      },
+      "fall": {
+        "active": false,
+        "quality": "good",
+        "eventAt": null
+      },
+      "raw": {
+        "accel_m_s2": {
+          "x": 0.12,
+          "y": 0.08,
+          "z": 9.79
+        },
+        "gyro_deg_s": {
+          "x": 0.1,
+          "y": 0.2,
+          "z": 0.1
+        },
+        "ir": 82000,
+        "red": 69000,
+        "object_temperature_c": 36.4,
+        "ambient_temperature_c": 24.1
+      },
+      "ai": {
+        "state": "not_connected",
+        "model": null,
+        "result": null,
+        "confidence": null
+      },
+      "source": "mock",
+      "scenario": "offline"
+    },
+    "expected": "unknown"
+  },
+  {
+    "name": "stale",
+    "now": "2026-10-20T03:30:00.000Z",
+    "reading": {
+      "patientId": "p001",
+      "deviceId": "esp32-01",
+      "measuredAt": "2026-10-20T03:27:00.000Z",
+      "receivedAt": "2026-10-20T03:30:00.100Z",
+      "connected": true,
+      "metrics": {
+        "hr": {
+          "value": 73,
+          "quality": "good"
+        },
+        "spo2": {
+          "value": 98,
+          "quality": "good"
+        },
+        "temp": {
+          "value": 36.4,
+          "quality": "good"
+        }
+      },
+      "fall": {
+        "active": false,
+        "quality": "good",
+        "eventAt": null
+      },
+      "raw": {
+        "accel_m_s2": {
+          "x": 0.12,
+          "y": 0.08,
+          "z": 9.79
+        },
+        "gyro_deg_s": {
+          "x": 0.1,
+          "y": 0.2,
+          "z": 0.1
+        },
+        "ir": 82000,
+        "red": 69000,
+        "object_temperature_c": 36.4,
+        "ambient_temperature_c": 24.1
+      },
+      "ai": {
+        "state": "not_connected",
+        "model": null,
+        "result": null,
+        "confidence": null
+      },
+      "source": "mock",
+      "scenario": "stale"
+    },
+    "expected": "unknown"
+  },
+  {
+    "name": "noData",
+    "now": "2026-10-20T03:30:00.000Z",
+    "reading": null,
+    "expected": "unknown"
+  },
+  {
+    "name": "hr-44.9",
+    "now": "2026-10-20T03:30:00.000Z",
+    "reading": {
+      "patientId": "p001",
+      "deviceId": "esp32-01",
+      "measuredAt": "2026-10-20T03:30:00.000Z",
+      "receivedAt": "2026-10-20T03:30:00.100Z",
+      "connected": true,
+      "metrics": {
+        "hr": {
+          "value": 44.9,
+          "quality": "good"
+        },
+        "spo2": {
+          "value": 98,
+          "quality": "good"
+        },
+        "temp": {
+          "value": 36.4,
+          "quality": "good"
+        }
+      },
+      "fall": {
+        "active": false,
+        "quality": "good",
+        "eventAt": null
+      },
+      "raw": {
+        "accel_m_s2": {
+          "x": 0.12,
+          "y": 0.08,
+          "z": 9.79
+        },
+        "gyro_deg_s": {
+          "x": 0.1,
+          "y": 0.2,
+          "z": 0.1
+        },
+        "ir": 82000,
+        "red": 69000,
+        "object_temperature_c": 36.4,
+        "ambient_temperature_c": 24.1
+      },
+      "ai": {
+        "state": "not_connected",
+        "model": null,
+        "result": null,
+        "confidence": null
+      },
+      "source": "mock",
+      "scenario": "normal"
+    },
+    "expected": "red"
+  },
+  {
+    "name": "hr-45",
+    "now": "2026-10-20T03:30:00.000Z",
+    "reading": {
+      "patientId": "p001",
+      "deviceId": "esp32-01",
+      "measuredAt": "2026-10-20T03:30:00.000Z",
+      "receivedAt": "2026-10-20T03:30:00.100Z",
+      "connected": true,
+      "metrics": {
+        "hr": {
+          "value": 45,
+          "quality": "good"
+        },
+        "spo2": {
+          "value": 98,
+          "quality": "good"
+        },
+        "temp": {
+          "value": 36.4,
+          "quality": "good"
+        }
+      },
+      "fall": {
+        "active": false,
+        "quality": "good",
+        "eventAt": null
+      },
+      "raw": {
+        "accel_m_s2": {
+          "x": 0.12,
+          "y": 0.08,
+          "z": 9.79
+        },
+        "gyro_deg_s": {
+          "x": 0.1,
+          "y": 0.2,
+          "z": 0.1
+        },
+        "ir": 82000,
+        "red": 69000,
+        "object_temperature_c": 36.4,
+        "ambient_temperature_c": 24.1
+      },
+      "ai": {
+        "state": "not_connected",
+        "model": null,
+        "result": null,
+        "confidence": null
+      },
+      "source": "mock",
+      "scenario": "normal"
+    },
+    "expected": "yellow"
+  },
+  {
+    "name": "hr-60",
+    "now": "2026-10-20T03:30:00.000Z",
+    "reading": {
+      "patientId": "p001",
+      "deviceId": "esp32-01",
+      "measuredAt": "2026-10-20T03:30:00.000Z",
+      "receivedAt": "2026-10-20T03:30:00.100Z",
+      "connected": true,
+      "metrics": {
+        "hr": {
+          "value": 60,
+          "quality": "good"
+        },
+        "spo2": {
+          "value": 98,
+          "quality": "good"
+        },
+        "temp": {
+          "value": 36.4,
+          "quality": "good"
+        }
+      },
+      "fall": {
+        "active": false,
+        "quality": "good",
+        "eventAt": null
+      },
+      "raw": {
+        "accel_m_s2": {
+          "x": 0.12,
+          "y": 0.08,
+          "z": 9.79
+        },
+        "gyro_deg_s": {
+          "x": 0.1,
+          "y": 0.2,
+          "z": 0.1
+        },
+        "ir": 82000,
+        "red": 69000,
+        "object_temperature_c": 36.4,
+        "ambient_temperature_c": 24.1
+      },
+      "ai": {
+        "state": "not_connected",
+        "model": null,
+        "result": null,
+        "confidence": null
+      },
+      "source": "mock",
+      "scenario": "normal"
+    },
+    "expected": "green"
+  },
+  {
+    "name": "hr-100",
+    "now": "2026-10-20T03:30:00.000Z",
+    "reading": {
+      "patientId": "p001",
+      "deviceId": "esp32-01",
+      "measuredAt": "2026-10-20T03:30:00.000Z",
+      "receivedAt": "2026-10-20T03:30:00.100Z",
+      "connected": true,
+      "metrics": {
+        "hr": {
+          "value": 100,
+          "quality": "good"
+        },
+        "spo2": {
+          "value": 98,
+          "quality": "good"
+        },
+        "temp": {
+          "value": 36.4,
+          "quality": "good"
+        }
+      },
+      "fall": {
+        "active": false,
+        "quality": "good",
+        "eventAt": null
+      },
+      "raw": {
+        "accel_m_s2": {
+          "x": 0.12,
+          "y": 0.08,
+          "z": 9.79
+        },
+        "gyro_deg_s": {
+          "x": 0.1,
+          "y": 0.2,
+          "z": 0.1
+        },
+        "ir": 82000,
+        "red": 69000,
+        "object_temperature_c": 36.4,
+        "ambient_temperature_c": 24.1
+      },
+      "ai": {
+        "state": "not_connected",
+        "model": null,
+        "result": null,
+        "confidence": null
+      },
+      "source": "mock",
+      "scenario": "normal"
+    },
+    "expected": "green"
+  },
+  {
+    "name": "hr-130",
+    "now": "2026-10-20T03:30:00.000Z",
+    "reading": {
+      "patientId": "p001",
+      "deviceId": "esp32-01",
+      "measuredAt": "2026-10-20T03:30:00.000Z",
+      "receivedAt": "2026-10-20T03:30:00.100Z",
+      "connected": true,
+      "metrics": {
+        "hr": {
+          "value": 130,
+          "quality": "good"
+        },
+        "spo2": {
+          "value": 98,
+          "quality": "good"
+        },
+        "temp": {
+          "value": 36.4,
+          "quality": "good"
+        }
+      },
+      "fall": {
+        "active": false,
+        "quality": "good",
+        "eventAt": null
+      },
+      "raw": {
+        "accel_m_s2": {
+          "x": 0.12,
+          "y": 0.08,
+          "z": 9.79
+        },
+        "gyro_deg_s": {
+          "x": 0.1,
+          "y": 0.2,
+          "z": 0.1
+        },
+        "ir": 82000,
+        "red": 69000,
+        "object_temperature_c": 36.4,
+        "ambient_temperature_c": 24.1
+      },
+      "ai": {
+        "state": "not_connected",
+        "model": null,
+        "result": null,
+        "confidence": null
+      },
+      "source": "mock",
+      "scenario": "normal"
+    },
+    "expected": "yellow"
+  },
+  {
+    "name": "hr-130.1",
+    "now": "2026-10-20T03:30:00.000Z",
+    "reading": {
+      "patientId": "p001",
+      "deviceId": "esp32-01",
+      "measuredAt": "2026-10-20T03:30:00.000Z",
+      "receivedAt": "2026-10-20T03:30:00.100Z",
+      "connected": true,
+      "metrics": {
+        "hr": {
+          "value": 130.1,
+          "quality": "good"
+        },
+        "spo2": {
+          "value": 98,
+          "quality": "good"
+        },
+        "temp": {
+          "value": 36.4,
+          "quality": "good"
+        }
+      },
+      "fall": {
+        "active": false,
+        "quality": "good",
+        "eventAt": null
+      },
+      "raw": {
+        "accel_m_s2": {
+          "x": 0.12,
+          "y": 0.08,
+          "z": 9.79
+        },
+        "gyro_deg_s": {
+          "x": 0.1,
+          "y": 0.2,
+          "z": 0.1
+        },
+        "ir": 82000,
+        "red": 69000,
+        "object_temperature_c": 36.4,
+        "ambient_temperature_c": 24.1
+      },
+      "ai": {
+        "state": "not_connected",
+        "model": null,
+        "result": null,
+        "confidence": null
+      },
+      "source": "mock",
+      "scenario": "normal"
+    },
+    "expected": "red"
+  },
+  {
+    "name": "spo2-89.9",
+    "now": "2026-10-20T03:30:00.000Z",
+    "reading": {
+      "patientId": "p001",
+      "deviceId": "esp32-01",
+      "measuredAt": "2026-10-20T03:30:00.000Z",
+      "receivedAt": "2026-10-20T03:30:00.100Z",
+      "connected": true,
+      "metrics": {
+        "hr": {
+          "value": 73,
+          "quality": "good"
+        },
+        "spo2": {
+          "value": 89.9,
+          "quality": "good"
+        },
+        "temp": {
+          "value": 36.4,
+          "quality": "good"
+        }
+      },
+      "fall": {
+        "active": false,
+        "quality": "good",
+        "eventAt": null
+      },
+      "raw": {
+        "accel_m_s2": {
+          "x": 0.12,
+          "y": 0.08,
+          "z": 9.79
+        },
+        "gyro_deg_s": {
+          "x": 0.1,
+          "y": 0.2,
+          "z": 0.1
+        },
+        "ir": 82000,
+        "red": 69000,
+        "object_temperature_c": 36.4,
+        "ambient_temperature_c": 24.1
+      },
+      "ai": {
+        "state": "not_connected",
+        "model": null,
+        "result": null,
+        "confidence": null
+      },
+      "source": "mock",
+      "scenario": "normal"
+    },
+    "expected": "red"
+  },
+  {
+    "name": "spo2-90",
+    "now": "2026-10-20T03:30:00.000Z",
+    "reading": {
+      "patientId": "p001",
+      "deviceId": "esp32-01",
+      "measuredAt": "2026-10-20T03:30:00.000Z",
+      "receivedAt": "2026-10-20T03:30:00.100Z",
+      "connected": true,
+      "metrics": {
+        "hr": {
+          "value": 73,
+          "quality": "good"
+        },
+        "spo2": {
+          "value": 90,
+          "quality": "good"
+        },
+        "temp": {
+          "value": 36.4,
+          "quality": "good"
+        }
+      },
+      "fall": {
+        "active": false,
+        "quality": "good",
+        "eventAt": null
+      },
+      "raw": {
+        "accel_m_s2": {
+          "x": 0.12,
+          "y": 0.08,
+          "z": 9.79
+        },
+        "gyro_deg_s": {
+          "x": 0.1,
+          "y": 0.2,
+          "z": 0.1
+        },
+        "ir": 82000,
+        "red": 69000,
+        "object_temperature_c": 36.4,
+        "ambient_temperature_c": 24.1
+      },
+      "ai": {
+        "state": "not_connected",
+        "model": null,
+        "result": null,
+        "confidence": null
+      },
+      "source": "mock",
+      "scenario": "normal"
+    },
+    "expected": "yellow"
+  },
+  {
+    "name": "spo2-95",
+    "now": "2026-10-20T03:30:00.000Z",
+    "reading": {
+      "patientId": "p001",
+      "deviceId": "esp32-01",
+      "measuredAt": "2026-10-20T03:30:00.000Z",
+      "receivedAt": "2026-10-20T03:30:00.100Z",
+      "connected": true,
+      "metrics": {
+        "hr": {
+          "value": 73,
+          "quality": "good"
+        },
+        "spo2": {
+          "value": 95,
+          "quality": "good"
+        },
+        "temp": {
+          "value": 36.4,
+          "quality": "good"
+        }
+      },
+      "fall": {
+        "active": false,
+        "quality": "good",
+        "eventAt": null
+      },
+      "raw": {
+        "accel_m_s2": {
+          "x": 0.12,
+          "y": 0.08,
+          "z": 9.79
+        },
+        "gyro_deg_s": {
+          "x": 0.1,
+          "y": 0.2,
+          "z": 0.1
+        },
+        "ir": 82000,
+        "red": 69000,
+        "object_temperature_c": 36.4,
+        "ambient_temperature_c": 24.1
+      },
+      "ai": {
+        "state": "not_connected",
+        "model": null,
+        "result": null,
+        "confidence": null
+      },
+      "source": "mock",
+      "scenario": "normal"
+    },
+    "expected": "green"
+  },
+  {
+    "name": "spo2-98",
+    "now": "2026-10-20T03:30:00.000Z",
+    "reading": {
+      "patientId": "p001",
+      "deviceId": "esp32-01",
+      "measuredAt": "2026-10-20T03:30:00.000Z",
+      "receivedAt": "2026-10-20T03:30:00.100Z",
+      "connected": true,
+      "metrics": {
+        "hr": {
+          "value": 73,
+          "quality": "good"
+        },
+        "spo2": {
+          "value": 98,
+          "quality": "good"
+        },
+        "temp": {
+          "value": 36.4,
+          "quality": "good"
+        }
+      },
+      "fall": {
+        "active": false,
+        "quality": "good",
+        "eventAt": null
+      },
+      "raw": {
+        "accel_m_s2": {
+          "x": 0.12,
+          "y": 0.08,
+          "z": 9.79
+        },
+        "gyro_deg_s": {
+          "x": 0.1,
+          "y": 0.2,
+          "z": 0.1
+        },
+        "ir": 82000,
+        "red": 69000,
+        "object_temperature_c": 36.4,
+        "ambient_temperature_c": 24.1
+      },
+      "ai": {
+        "state": "not_connected",
+        "model": null,
+        "result": null,
+        "confidence": null
+      },
+      "source": "mock",
+      "scenario": "normal"
+    },
+    "expected": "green"
+  },
+  {
+    "name": "temp-33.9",
+    "now": "2026-10-20T03:30:00.000Z",
+    "reading": {
+      "patientId": "p001",
+      "deviceId": "esp32-01",
+      "measuredAt": "2026-10-20T03:30:00.000Z",
+      "receivedAt": "2026-10-20T03:30:00.100Z",
+      "connected": true,
+      "metrics": {
+        "hr": {
+          "value": 73,
+          "quality": "good"
+        },
+        "spo2": {
+          "value": 98,
+          "quality": "good"
+        },
+        "temp": {
+          "value": 33.9,
+          "quality": "good"
+        }
+      },
+      "fall": {
+        "active": false,
+        "quality": "good",
+        "eventAt": null
+      },
+      "raw": {
+        "accel_m_s2": {
+          "x": 0.12,
+          "y": 0.08,
+          "z": 9.79
+        },
+        "gyro_deg_s": {
+          "x": 0.1,
+          "y": 0.2,
+          "z": 0.1
+        },
+        "ir": 82000,
+        "red": 69000,
+        "object_temperature_c": 36.4,
+        "ambient_temperature_c": 24.1
+      },
+      "ai": {
+        "state": "not_connected",
+        "model": null,
+        "result": null,
+        "confidence": null
+      },
+      "source": "mock",
+      "scenario": "normal"
+    },
+    "expected": "red"
+  },
+  {
+    "name": "temp-34",
+    "now": "2026-10-20T03:30:00.000Z",
+    "reading": {
+      "patientId": "p001",
+      "deviceId": "esp32-01",
+      "measuredAt": "2026-10-20T03:30:00.000Z",
+      "receivedAt": "2026-10-20T03:30:00.100Z",
+      "connected": true,
+      "metrics": {
+        "hr": {
+          "value": 73,
+          "quality": "good"
+        },
+        "spo2": {
+          "value": 98,
+          "quality": "good"
+        },
+        "temp": {
+          "value": 34,
+          "quality": "good"
+        }
+      },
+      "fall": {
+        "active": false,
+        "quality": "good",
+        "eventAt": null
+      },
+      "raw": {
+        "accel_m_s2": {
+          "x": 0.12,
+          "y": 0.08,
+          "z": 9.79
+        },
+        "gyro_deg_s": {
+          "x": 0.1,
+          "y": 0.2,
+          "z": 0.1
+        },
+        "ir": 82000,
+        "red": 69000,
+        "object_temperature_c": 36.4,
+        "ambient_temperature_c": 24.1
+      },
+      "ai": {
+        "state": "not_connected",
+        "model": null,
+        "result": null,
+        "confidence": null
+      },
+      "source": "mock",
+      "scenario": "normal"
+    },
+    "expected": "yellow"
+  },
+  {
+    "name": "temp-35.5",
+    "now": "2026-10-20T03:30:00.000Z",
+    "reading": {
+      "patientId": "p001",
+      "deviceId": "esp32-01",
+      "measuredAt": "2026-10-20T03:30:00.000Z",
+      "receivedAt": "2026-10-20T03:30:00.100Z",
+      "connected": true,
+      "metrics": {
+        "hr": {
+          "value": 73,
+          "quality": "good"
+        },
+        "spo2": {
+          "value": 98,
+          "quality": "good"
+        },
+        "temp": {
+          "value": 35.5,
+          "quality": "good"
+        }
+      },
+      "fall": {
+        "active": false,
+        "quality": "good",
+        "eventAt": null
+      },
+      "raw": {
+        "accel_m_s2": {
+          "x": 0.12,
+          "y": 0.08,
+          "z": 9.79
+        },
+        "gyro_deg_s": {
+          "x": 0.1,
+          "y": 0.2,
+          "z": 0.1
+        },
+        "ir": 82000,
+        "red": 69000,
+        "object_temperature_c": 36.4,
+        "ambient_temperature_c": 24.1
+      },
+      "ai": {
+        "state": "not_connected",
+        "model": null,
+        "result": null,
+        "confidence": null
+      },
+      "source": "mock",
+      "scenario": "normal"
+    },
+    "expected": "green"
+  },
+  {
+    "name": "temp-37.5",
+    "now": "2026-10-20T03:30:00.000Z",
+    "reading": {
+      "patientId": "p001",
+      "deviceId": "esp32-01",
+      "measuredAt": "2026-10-20T03:30:00.000Z",
+      "receivedAt": "2026-10-20T03:30:00.100Z",
+      "connected": true,
+      "metrics": {
+        "hr": {
+          "value": 73,
+          "quality": "good"
+        },
+        "spo2": {
+          "value": 98,
+          "quality": "good"
+        },
+        "temp": {
+          "value": 37.5,
+          "quality": "good"
+        }
+      },
+      "fall": {
+        "active": false,
+        "quality": "good",
+        "eventAt": null
+      },
+      "raw": {
+        "accel_m_s2": {
+          "x": 0.12,
+          "y": 0.08,
+          "z": 9.79
+        },
+        "gyro_deg_s": {
+          "x": 0.1,
+          "y": 0.2,
+          "z": 0.1
+        },
+        "ir": 82000,
+        "red": 69000,
+        "object_temperature_c": 36.4,
+        "ambient_temperature_c": 24.1
+      },
+      "ai": {
+        "state": "not_connected",
+        "model": null,
+        "result": null,
+        "confidence": null
+      },
+      "source": "mock",
+      "scenario": "normal"
+    },
+    "expected": "green"
+  },
+  {
+    "name": "temp-39",
+    "now": "2026-10-20T03:30:00.000Z",
+    "reading": {
+      "patientId": "p001",
+      "deviceId": "esp32-01",
+      "measuredAt": "2026-10-20T03:30:00.000Z",
+      "receivedAt": "2026-10-20T03:30:00.100Z",
+      "connected": true,
+      "metrics": {
+        "hr": {
+          "value": 73,
+          "quality": "good"
+        },
+        "spo2": {
+          "value": 98,
+          "quality": "good"
+        },
+        "temp": {
+          "value": 39,
+          "quality": "good"
+        }
+      },
+      "fall": {
+        "active": false,
+        "quality": "good",
+        "eventAt": null
+      },
+      "raw": {
+        "accel_m_s2": {
+          "x": 0.12,
+          "y": 0.08,
+          "z": 9.79
+        },
+        "gyro_deg_s": {
+          "x": 0.1,
+          "y": 0.2,
+          "z": 0.1
+        },
+        "ir": 82000,
+        "red": 69000,
+        "object_temperature_c": 36.4,
+        "ambient_temperature_c": 24.1
+      },
+      "ai": {
+        "state": "not_connected",
+        "model": null,
+        "result": null,
+        "confidence": null
+      },
+      "source": "mock",
+      "scenario": "normal"
+    },
+    "expected": "yellow"
+  },
+  {
+    "name": "temp-39.1",
+    "now": "2026-10-20T03:30:00.000Z",
+    "reading": {
+      "patientId": "p001",
+      "deviceId": "esp32-01",
+      "measuredAt": "2026-10-20T03:30:00.000Z",
+      "receivedAt": "2026-10-20T03:30:00.100Z",
+      "connected": true,
+      "metrics": {
+        "hr": {
+          "value": 73,
+          "quality": "good"
+        },
+        "spo2": {
+          "value": 98,
+          "quality": "good"
+        },
+        "temp": {
+          "value": 39.1,
+          "quality": "good"
+        }
+      },
+      "fall": {
+        "active": false,
+        "quality": "good",
+        "eventAt": null
+      },
+      "raw": {
+        "accel_m_s2": {
+          "x": 0.12,
+          "y": 0.08,
+          "z": 9.79
+        },
+        "gyro_deg_s": {
+          "x": 0.1,
+          "y": 0.2,
+          "z": 0.1
+        },
+        "ir": 82000,
+        "red": 69000,
+        "object_temperature_c": 36.4,
+        "ambient_temperature_c": 24.1
+      },
+      "ai": {
+        "state": "not_connected",
+        "model": null,
+        "result": null,
+        "confidence": null
+      },
+      "source": "mock",
+      "scenario": "normal"
+    },
+    "expected": "red"
+  },
+  {
+    "name": "unresolved-fall-offline",
+    "now": "2026-10-20T03:30:00.000Z",
+    "reading": {
+      "patientId": "p001",
+      "deviceId": "esp32-01",
+      "measuredAt": "2026-10-20T03:30:00.000Z",
+      "receivedAt": "2026-10-20T03:30:00.100Z",
+      "connected": false,
+      "metrics": {
+        "hr": {
+          "value": 73,
+          "quality": "good"
+        },
+        "spo2": {
+          "value": 98,
+          "quality": "good"
+        },
+        "temp": {
+          "value": 36.4,
+          "quality": "good"
+        }
+      },
+      "fall": {
+        "active": true,
+        "quality": "good",
+        "eventAt": "2026-10-20T03:29:15.000Z"
+      },
+      "raw": {
+        "accel_m_s2": {
+          "x": 3.4,
+          "y": 9.6,
+          "z": 1.2
+        },
+        "gyro_deg_s": {
+          "x": 0.1,
+          "y": 0.2,
+          "z": 0.1
+        },
+        "ir": 82000,
+        "red": 69000,
+        "object_temperature_c": 36.4,
+        "ambient_temperature_c": 24.1
+      },
+      "ai": {
+        "state": "not_connected",
+        "model": null,
+        "result": null,
+        "confidence": null
+      },
+      "source": "mock",
+      "scenario": "fall"
+    },
+    "expected": "red"
+  },
+  {
+    "name": "known-mild-with-missing-data",
+    "now": "2026-10-20T03:30:00.000Z",
+    "reading": {
+      "patientId": "p001",
+      "deviceId": "esp32-01",
+      "measuredAt": "2026-10-20T03:30:00.000Z",
+      "receivedAt": "2026-10-20T03:30:00.100Z",
+      "connected": true,
+      "metrics": {
+        "hr": {
+          "value": 108,
+          "quality": "good"
+        },
+        "spo2": {
+          "value": null,
+          "quality": "unavailable"
+        },
+        "temp": {
+          "value": 36.4,
+          "quality": "good"
+        }
+      },
+      "fall": {
+        "active": false,
+        "quality": "good",
+        "eventAt": null
+      },
+      "raw": {
+        "accel_m_s2": {
+          "x": 0.12,
+          "y": 0.08,
+          "z": 9.79
+        },
+        "gyro_deg_s": {
+          "x": 0.1,
+          "y": 0.2,
+          "z": 0.1
+        },
+        "ir": 82000,
+        "red": 69000,
+        "object_temperature_c": 36.4,
+        "ambient_temperature_c": 24.1
+      },
+      "ai": {
+        "state": "not_connected",
+        "model": null,
+        "result": null,
+        "confidence": null
+      },
+      "source": "mock",
+      "scenario": "mild"
+    },
+    "expected": "yellow"
+  },
+  {
+    "name": "reading-timeout",
+    "now": "2026-10-20T03:30:30.001Z",
+    "reading": {
+      "patientId": "p001",
+      "deviceId": "esp32-01",
+      "measuredAt": "2026-10-20T03:30:00.000Z",
+      "receivedAt": "2026-10-20T03:30:00.100Z",
+      "connected": true,
+      "metrics": {
+        "hr": {
+          "value": 73,
+          "quality": "good"
+        },
+        "spo2": {
+          "value": 98,
+          "quality": "good"
+        },
+        "temp": {
+          "value": 36.4,
+          "quality": "good"
+        }
+      },
+      "fall": {
+        "active": false,
+        "quality": "good",
+        "eventAt": null
+      },
+      "raw": {
+        "accel_m_s2": {
+          "x": 0.12,
+          "y": 0.08,
+          "z": 9.79
+        },
+        "gyro_deg_s": {
+          "x": 0.1,
+          "y": 0.2,
+          "z": 0.1
+        },
+        "ir": 82000,
+        "red": 69000,
+        "object_temperature_c": 36.4,
+        "ambient_temperature_c": 24.1
+      },
+      "ai": {
+        "state": "not_connected",
+        "model": null,
+        "result": null,
+        "confidence": null
+      },
+      "source": "mock",
+      "scenario": "normal"
+    },
+    "expected": "unknown"
+  }
+]
