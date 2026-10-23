@@ -19,5 +19,5 @@ export async function loadConfig():Promise<AppConfig>{
   if(!response.ok)throw new DataError('configuration',`Configuration HTTP ${response.status}`);
   let config:unknown;try{config=await response.json();}catch{throw new DataError('configuration','Configuration is not JSON');}
   const parsed=ConfigSchema.safeParse(config);if(!parsed.success)throw new DataError('configuration','Invalid configuration');
-  return validateConfig({...parsed.data,mode:import.meta.env.VITE_DATA_MODE||parsed.data.mode,baseUrl:import.meta.env.VITE_API_BASE_URL??parsed.data.baseUrl,apiConfirmed:import.meta.env.VITE_API_CONFIRMED?import.meta.env.VITE_API_CONFIRMED==='true':parsed.data.apiConfirmed});
+  return validateConfig({...parsed.data,mode:['mock','live'].includes(import.meta.env.VITE_DATA_MODE)?import.meta.env.VITE_DATA_MODE:parsed.data.mode,baseUrl:import.meta.env.VITE_API_BASE_URL??parsed.data.baseUrl,apiConfirmed:import.meta.env.VITE_API_CONFIRMED?import.meta.env.VITE_API_CONFIRMED==='true':parsed.data.apiConfirmed});
 }

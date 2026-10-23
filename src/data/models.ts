@@ -17,15 +17,16 @@ const vector=z.object({x:z.number().finite(),y:z.number().finite(),z:z.number().
 export const AssessmentSchema=z.object({level:LevelSchema,reasons:z.array(z.string()),assessedAt:timestamp,ruleSetId:z.string().nullable(),origin:z.literal('backend')});
 export const SensorReadingSchema=z.object({
   patientId:z.string().min(1),deviceId:z.string().min(1),measuredAt:timestamp,receivedAt:timestamp,
-  connected:z.boolean(),metrics:z.object({hr:MetricSchema,spo2:MetricSchema,temp:MetricSchema}),
+  connected:z.boolean(),metrics:z.object({hr:MetricSchema,spo2:MetricSchema,temp:MetricSchema,ambient:MetricSchema.optional(),motion:MetricSchema.optional()}),
   fall:z.object({active:z.boolean(),quality:QualitySchema,eventAt:timestamp.nullable().optional()}),
   raw:z.object({accel_m_s2:vector.nullable(),gyro_deg_s:vector.nullable(),ir:z.number().nullable(),red:z.number().nullable(),object_temperature_c:z.number().nullable(),ambient_temperature_c:z.number().nullable()}).nullable(),
+  hardware:z.object({motionConnected:z.boolean(),temperatureConnected:z.boolean(),rawAlarm:z.boolean().nullable(),accelG:vector.nullable(),peakG:z.number().nullable(),uptimeMs:z.number(),timestampBasis:z.literal('bridge_received')}).optional(),
   ai:PredictionSchema,source,scenario:z.string().optional(),assessment:AssessmentSchema.nullable().optional(),
 });
 export const PatientSchema=z.object({
   id:z.string().min(1),name:z.string().min(1),age:z.number().int().min(0),sex:z.string(),
   history:z.string(),bed:z.string(),color:z.string(),admittedAt:z.string(),allergies:z.string(),
-  scenario:z.string().optional(),reading:SensorReadingSchema.nullable(),
+  scenario:z.string().optional(),profileKind:z.literal('device').optional(),reading:SensorReadingSchema.nullable(),
 }).superRefine((p,c)=>{if(p.reading&&p.reading.patientId!==p.id)c.addIssue({code:'custom',message:'Reading patientId does not match profile'});});
 export const AlertSchema=z.object({
   id:z.string().min(1),patientId:z.string().min(1),type:z.string().min(1),severity:LevelSchema,
@@ -39,6 +40,7 @@ export const AlertSchema=z.object({
 export const SessionSchema=z.object({userId:z.string(),role:z.enum(['clinician','patient','family']),mode:z.enum(['pro','basic']),patientIds:z.array(z.string())}).superRefine((s,c)=>{
   if(s.mode==='pro'&&s.role!=='clinician')c.addIssue({code:'custom',message:'Pro requires clinician role'});
 });
+export type Metric=z.infer<typeof MetricSchema>;
 export type Patient=z.infer<typeof PatientSchema>;
 export type SensorReading=z.infer<typeof SensorReadingSchema>;
 export type Prediction=z.infer<typeof PredictionSchema>;
@@ -46,10 +48,10 @@ export type Alert=z.infer<typeof AlertSchema>;
 export type Session=z.infer<typeof SessionSchema>;
 export type Quality=z.infer<typeof QualitySchema>;
 export type Level=z.infer<typeof LevelSchema>;
-export type MetricKey='hr'|'spo2'|'temp';
+export type MetricKey='hr'|'spo2'|'temp'|'ambient'|'motion';
 export type AppMode='pro'|'basic';
 export type Language='zh'|'en';
-export type ServiceMode='mock'|'live';
+export type ServiceMode='mock'|'live'|'hardware';
 export type Resource<T>={state:'idle'|'loading'|'ready'|'empty'|'error';data:T;error:string|null;updatedAt:number|null};
 export const initialResource=<T>(data:T):Resource<T>=>({state:'idle',data,error:null,updatedAt:null});
 export type DemoRules={hr:{severeLow:number;mildLow:number;mildHigh:number;severeHigh:number};spo2:{severeLow:number;mildLow:number};temp:{severeLow:number;mildLow:number;mildHigh:number;severeHigh:number};staleAfterSeconds:number};

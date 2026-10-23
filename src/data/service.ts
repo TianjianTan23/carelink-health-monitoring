@@ -1,8 +1,10 @@
-import type {Alert,AppMode,DemoRules,Patient,Prediction,SensorReading,ServiceMode,Session} from './models';
+import type {Alert,AppMode,DemoRules,Patient,Prediction,MetricKey,SensorReading,ServiceMode,Session} from './models';
 export type Scenario='normal'|'mild'|'severe'|'fall'|'poor'|'unavailable'|'offline'|'stale'|'noData';
 export interface DataService {
   readonly mode:ServiceMode;
   readonly rules:DemoRules;
+  readonly metricKeys?:MetricKey[];
+  readonly pollIntervalMs?:number;
   getSession(mode?:AppMode):Promise<Session>;
   getPatients():Promise<Patient[]>;
   getPatient(id:string):Promise<Patient|null>;

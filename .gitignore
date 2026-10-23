@@ -4,3 +4,19 @@ build/
 coverage/
 .env.local
 *.tsbuildinfo
+
+# Local environment and credentials; only the template is distributable.
+.env
+.env.*
+!.env.example
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.vite/
+.DS_Store
+DerivedData/
+xcuserdata/
+*.xcuserstate
+*.log

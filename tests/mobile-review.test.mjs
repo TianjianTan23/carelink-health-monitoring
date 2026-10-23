@@ -7,7 +7,7 @@ import {randomUUID} from 'node:crypto';
 // Exercises authored UI state and rendered content without browser automation.
 // This does not measure CSS layout or substitute for an iPhone build.
 async function harness({blockedStorage=false,hasCrypto=true}={}){
- const html=await readFile(new URL('../../carelink-iphone-review.html',import.meta.url),'utf8');
+ const html=await readFile(new URL('../build/carelink-iphone-review.html',import.meta.url),'utf8');
  const source=html.match(/<script>([\s\S]*)<\/script>/)[1];
  const events={},app={innerHTML:''},dialog={returnValue:'',querySelector:()=>({textContent:''}),showModal(){this.open=true;},addEventListener(type,handler){this[type]=handler;}};
  const fields={'#app':app,'#confirm':dialog,'#username':{value:'demo@carelink.example'},'#password':{value:'demo1234'},'#search':{value:''}};
