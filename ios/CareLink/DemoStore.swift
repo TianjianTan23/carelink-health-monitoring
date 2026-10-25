@@ -151,7 +151,7 @@ final class DemoStore: ObservableObject {
     }
     func fresh(_ reading: Reading?) -> Bool { rules.map { Monitoring.isFresh(reading, rules: $0, now: now) } ?? false }
     func metricName(_ key: MetricKey) -> String {
-        switch key { case .hr: return t("心率", "Heart rate"); case .spo2: return t("血氧", "SpO₂"); case .temp: return t("温度", "Temperature") }
+        switch key { case .hr: return t("心率", "Heart rate"); case .temp: return t("表面温度", "Surface temperature") }
     }
     func levelName(_ level: RiskLevel) -> String {
         switch level {
@@ -180,7 +180,31 @@ final class DemoStore: ObservableObject {
     func firstReason(_ report: StatusReport) -> String {
         report.reasons.first.map { reason($0) } ?? t("后端未提供详细说明", "Backend did not provide a detailed explanation")
     }
+    func heartRateUpdatedAt(_ reading: Reading?) -> Date? {
+        guard let reading = reading else { return nil }
+        return reading.metrics.hr.measuredAt ?? (reading.metrics.hr.sensor == "KY-039" ? nil : reading.measuredAt)
+    }
+    func heartRateState(_ reading: Reading?) -> String {
+        guard let rules = rules else { return t("等待传感器数据", "Waiting for sensor data") }
+        switch Monitoring.heartState(reading, rules: rules, now: now) {
+        case "mock": return t("模拟心率 · 非 KY-039 实测", "Mock heart rate · Not a KY-039 measurement")
+        case "valid": return t("有效心率采样", "Valid heart-rate sample")
+        case "unvalidated": return t("心率计算尚未验证", "Heart-rate calculation not yet validated")
+        case "poor": return t("信号质量不足", "Poor signal quality")
+        case "stale": return t("心率数据已过期", "Heart-rate data stale")
+        case "disconnected": return t("传感器未连接或连接失败", "Sensor disconnected or connection failed")
+        default: return t("等待有效心率信号", "Waiting for a valid heart-rate signal")
+        }
+    }
+    func heartRateConnection(_ reading: Reading?) -> String {
+        guard let reading = reading else { return t("连接状态未提供", "Connection not reported") }
+        if reading.source == "mock" { return t("模拟连接状态", "Mock connection state") }
+        if !fresh(reading) { return t("连接中断或上报已过期", "Connection lost or report stale") }
+        guard let connected = reading.metrics.hr.connected else { return t("心率连接状态未提供", "Heart-rate connection not reported") }
+        return connected ? t("传感器连接已上报", "Sensor connection reported") : t("心率传感器未连接", "Heart-rate sensor disconnected")
+    }
     func qualityNote(_ reading: Reading?, key: MetricKey) -> String {
+        if key == .hr { return heartRateState(reading) }
         guard let reading = reading else { return t("尚无数据", "No data yet") }
         guard fresh(reading) else { return reading.connected ? t("数据已过期", "Stale reading") : t("设备离线", "Device offline") }
         let metric = key.metric(in: reading)
@@ -193,13 +217,10 @@ final class DemoStore: ObservableObject {
         case .mild: return t("轻度异常", "Mild deviation")
         case .severe: return t("严重异常", "Severe deviation")
         case .fall: return t("跌倒警报", "Fall alert")
-        case .poor: return t("MAX 信号不稳", "MAX signal unreliable")
-        case .unavailable: return t("KY-005 备用模式", "KY-005 fallback mode")
+        case .poor: return t("心率信号不稳", "Heart-rate signal unreliable")
+        case .unavailable: return t("心率暂不可用", "Heart rate unavailable")
         case .offline: return t("设备离线", "Device offline")
         case .stale: return t("数据过期", "Stale readings")
-        case .backend(let text): return text
-        case .backendPending: return t("等待后端状态判断", "Awaiting backend assessment")
-        case .backendStale: return t("后端判断已过期", "Backend assessment is stale")
         case .noData: return t("尚无数据", "No data yet")
         }
     }

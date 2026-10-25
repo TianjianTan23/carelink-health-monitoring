@@ -22,7 +22,7 @@ struct PatientDetailView: View {
         var result = [TrendPoint](), segment = 0
         for (index, reading) in history.reversed().enumerated() {
             let value = metric.metric(in: reading)
-            if reading.connected && reading.scenario != "stale" && Monitoring.usable(value), let number = value.value {
+            if reading.connected && reading.scenario != "stale" && (store.rules.map { Monitoring.sampleUsable(reading, key: metric, rules: $0) } == true), let number = value.value {
                 result.append(TrendPoint(id: index, time: reading.measuredAt, value: number, segment: segment))
             } else { segment += 1 }
         }
@@ -76,7 +76,7 @@ struct PatientDetailView: View {
                                 ForEach(MetricKey.allCases) { Text(store.metricName($0)).tag($0) }
                             }.pickerStyle(.segmented)
                             let trend = points(for: patient)
-                            if trend.isEmpty {
+                            if trend.count < 2 {
                                 Text(store.t("暂无可用趋势数据，请检查设备与数据质量。", "No usable trend data. Check the device and data quality."))
                                     .foregroundStyle(.secondary).frame(maxWidth: .infinity, minHeight: 140)
                             } else {
@@ -122,7 +122,7 @@ struct PatientDetailView: View {
                                     HStack {
                                         ForEach(MetricKey.allCases) { key in
                                             let item = key.metric(in: reading)
-                                            Text("\(reading.connected && reading.scenario != "stale" && Monitoring.usable(item) ? (key == .temp ? String(format: "%.1f", item.value ?? 0) : String(Int((item.value ?? 0).rounded()))) : "—") \(key.unit)")
+                                            Text("\(reading.connected && reading.scenario != "stale" && (store.rules.map { Monitoring.sampleUsable(reading, key: key, rules: $0) } == true) ? (key == .temp ? String(format: "%.1f", item.value ?? 0) : String(Int((item.value ?? 0).rounded()))) : "—") \(key.unit)")
                                                 .font(.caption.monospacedDigit()).frame(maxWidth: .infinity, alignment: .leading)
                                         }
                                     }
@@ -170,7 +170,7 @@ struct PatientDetailView: View {
                             VStack(alignment: .leading, spacing: 12) {
                                 Text(store.time(patient.reading?.measuredAt)).font(.caption)
                                 if let raw = patient.reading?.raw { Text(json(raw)).font(.system(.caption, design: .monospaced)).textSelection(.enabled) } else { Text(store.t("原始数据未提供或无访问权限。", "Raw data is unavailable or not permitted.")) }
-                                Text(store.t("加速度 m/s²、角速度 °/s、红光/红外原始计数。", "Acceleration: m/s²; angular velocity: °/s; red/IR raw counts.")).font(.caption).foregroundStyle(.secondary)
+                                Text(store.t("加速度 m/s²、角速度 °/s、原始信号与 BPM 分开。", "Acceleration: m/s²; angular velocity: °/s; raw signals are separate from BPM.")).font(.caption).foregroundStyle(.secondary)
                             }.frame(maxWidth: .infinity, alignment: .leading)
                         }
                     }

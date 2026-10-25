@@ -4,7 +4,7 @@
 
 | 平台 | 程序形态 | Pro 模式 | Basic 模式 |
 | --- | --- | --- | --- |
-| 电脑 | 浏览器运行的 Web UI | 医护人员查看多个授权患者、分级、详情、原始数据、历史与 AI 输出 | 患者/家属查看已授权对象的心率、血氧、温度和跌倒状态 |
+| 电脑 | 浏览器运行的 Web UI | 医护人员查看多个授权患者、分级、详情、原始数据、历史与 AI 输出 | 患者/家属查看已授权对象的心率、表面温度和跌倒相关状态 |
 | 手机 | 独立 iPhone 原生 App，SwiftUI，iOS 17+ 为本轮默认最低版本 | 适合手机的患者列表、警报、详情、历史与 AI 占位 | 适合手机的大字关键指标、简单状态及数据质量提示 |
 
 - 手机端只开发 iOS；Android 不在范围内。
@@ -27,3 +27,5 @@
 ## 本阶段技术基准
 
 电脑 Web 已升级为 React + TypeScript，源码 src/，构建 build/。iPhone 沿用独立 SwiftUI。共享契约扩展为 Patient / SensorReading / Prediction / Alert，默认 mock，由 carelink-config.json 切换服务；LiveApiService 对应待确认草案，尚未接通组员后端。Figma 本轮禁止写入，保留原文件。新文档 API_CONTRACT.md 与 ARCHITECTURE.md 取代旧版服务层切换方式。
+
+2026-10-26：Web 与独立 SwiftUI 均移除血氧 UI，保留心率、温度、告警和全部 Pro/Basic 页面。KY-039 原始信号不能代替 BPM，算法/契约待确认。

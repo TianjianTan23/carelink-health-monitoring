@@ -5,19 +5,46 @@
   "receivedAt": "2026-10-20T03:30:00.100Z",
   "connected": true,
   "metrics": {
-    "hr": {"value": 76, "quality": "good"},
-    "spo2": {"value": 98, "quality": "good"},
-    "temp": {"value": 36.6, "quality": "good"}
+    "hr": {
+      "value": 76,
+      "quality": "good"
+    },
+    "spo2": {
+      "value": null,
+      "quality": "unavailable",
+      "available": false
+    },
+    "temp": {
+      "value": 36.6,
+      "quality": "good"
+    }
   },
-  "fall": {"active": false, "quality": "good", "eventAt": null},
+  "fall": {
+    "active": false,
+    "quality": "good",
+    "eventAt": null
+  },
   "raw": {
-    "accel_m_s2": {"x": 0.12, "y": 0.08, "z": 9.79},
-    "gyro_deg_s": {"x": 0.1, "y": 0.2, "z": 0.1},
+    "accel_m_s2": {
+      "x": 0.12,
+      "y": 0.08,
+      "z": 9.79
+    },
+    "gyro_deg_s": {
+      "x": 0.1,
+      "y": 0.2,
+      "z": 0.1
+    },
     "ir": 82000,
     "red": 69000,
     "object_temperature_c": 36.6,
     "ambient_temperature_c": 24.1
   },
-  "ai": {"state": "not_connected", "model": null, "result": null, "confidence": null},
+  "ai": {
+    "state": "not_connected",
+    "model": null,
+    "result": null,
+    "confidence": null
+  },
   "source": "mock"
 }

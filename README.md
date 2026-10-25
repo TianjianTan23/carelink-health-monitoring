@@ -2,7 +2,7 @@
 
 在原工程上升级：**React + TypeScript 响应式网站**，桌面使用 macOS 风格侧栏与工具栏，手机使用底部导航与触控布局。Pro / Basic、中英切换、深浅色与原有患者功能保留。按本轮确认，手机版以网站交付；独立 SwiftUI 工程保留，没有声称它已经完成硬件接入。
 
-默认是明确标记的虚构模拟数据。同一套完整页面现在也支持 ESP32 本地桥接，运行 `npm run dev:hardware`，详见 [硬件连接与启动说明](HARDWARE_BRIDGE.md)。HardwareDataService 将 FastAPI 上报接入原 DataService：硬件视图仅展示 MPU6050 运动与 MLX90614 表面/环境温度，移除 MAX30102 指标。本地设备档案不冒充真实患者；无认证、AI 或临床分级。历史与原始报警记录仅在本次浏览器会话保留。LiveApiService 仍是待确认的患者 API 草案，见 [API_CONTRACT.md](API_CONTRACT.md)。
+默认是明确标记的虚构模拟数据。同一套完整页面现在也支持 ESP32 本地桥接，运行 `npm run dev:hardware`，详见 [硬件连接与启动说明](HARDWARE_BRIDGE.md)。HardwareDataService 将 FastAPI 上报接入原 DataService：硬件视图保留 MPU6050 运动、MLX90614 表面/环境温度，并准备 KY-039 独立心率通道。所有产品页面移除血氧；KY-039 算法与契约未确认时心率显示不可用。本地设备档案不冒充真实患者；无认证、AI 或临床分级。历史与原始报警记录仅在本次浏览器会话保留。LiveApiService 仍是待确认的患者 API 草案，见 [API_CONTRACT.md](API_CONTRACT.md)。
 
 当前完整运行与评审说明见 [PRODUCT_UI.md](PRODUCT_UI.md)。工具栏可选 Mock / ESP32 / API，无需修改页面组件；切换数据源进入各自独立会话。
 
@@ -38,7 +38,7 @@ hardware-bridge/.venv/bin/python -m uvicorn main:app --app-dir hardware-bridge -
 npm run dev:hardware
 ```
 
-打开 http://127.0.0.1:5173/ ，数据源选择 **ESP32 · 本地桥接**，选 Pro / Basic，点击进入设备工作区，无需账号。**Backend API 用于另一套待确认的患者接口，不能用它连接此桥接。** 未收到设备上报时应显示等待；收到之后展示运动、表面温度与环境温度，不展示硬件 HR/SpO₂。表面温度不是核心体温；跌倒分类未验证，AI 未接入。
+打开 http://127.0.0.1:5173/ ，数据源选择 **ESP32 · 本地桥接**，选 Pro / Basic，点击进入设备工作区，无需账号。**Backend API 用于另一套待确认的患者接口，不能用它连接此桥接。** 未收到设备上报时应显示等待；收到之后展示运动、表面温度与环境温度，并保留 KY-039 心率通道。算法与契约未确认时心率显示 `—`，不展示血氧。表面温度不是核心体温；跌倒分类未验证，AI 未接入。
 
 Vite 的 `hardware` 模式直接选择硬件数据源，无需 `.env.hardware`。配置例子见 `.env.example`，实际覆盖写入未提交的 `.env.hardware.local`，例如 `CARELINK_BRIDGE_TARGET=http://127.0.0.1:8001`。不要把 `.env.example` 原样复制为 `.env` 后仍保留 `VITE_DATA_MODE=mock`，否则会覆盖硬件默认值。浏览器配置 `public/hardware-bridge-config.json` 默认设备 `esp32-01`，更换设备时同步修改 `deviceId`。
 
@@ -94,11 +94,11 @@ hardware-bridge/.venv/bin/python -m unittest discover -s hardware-bridge -p 'tes
 
 ## 体验流程
 
-- **Pro**：8 位虚构患者，初始红 2、黄 2、绿 3、待确认 1；搜索、分级筛选、卡片/列表切换。优先关注区可直接打开患者；详情分为概览、十分钟记录、原始数据与 AI 三个可切换区，保留档案、四项指标、十分钟趋势/21 条历史。
-- **Basic**：只显示会话关联的 p004，四项大指标、易懂状态、成功更新与采集时间。不会展示其他患者、病史、原始数据或 AI 详情，也不能执行医护确认。
+- **Pro**：8 位虚构患者，初始红 2、黄 2、绿 3、待确认 1；搜索、分级筛选、卡片/列表切换。优先关注区可直接打开患者；详情分为概览、十分钟记录、原始数据与 AI 三个可切换区，保留档案、保留指标、十分钟趋势/21 条历史。
+- **Basic**：只显示会话关联的 p004，关键指标、易懂状态、成功更新与采集时间。不会展示其他患者、病史、原始数据或 AI 详情，也不能执行医护确认。
 - **告警**：查看事件与数据质量记录、发生/更新时间、处理状态和详情；Pro 可确认，只有服务成功响应才更新。确认不解除跌倒或更改分级。
 - **演示场景**：切换平稳、轻度/严重异常、跌倒、读数不可靠、不可用、离线、过期、无数据；可暂停模拟更新和模拟网络失败。
-- **LCD 1602A**：保留 16×2 ASCII 概念，不是可烧录固件。KY-005 场景 HR/SpO₂ 为 `—`，不伪造替代读数。
+- **LCD 1602A**：保留 16×2 ASCII 概念，不是可烧录固件。心率不可用场景使用 `—`，不伪造替代读数。
 - **演示规则**：保留并可编辑原课堂阈值，仅模拟会话生效。真实 API 模式不使用它们给设备读数分级。
 
 本轮界面改动与可编辑设计源见 [UI_DESIGN.md](UI_DESIGN.md)。

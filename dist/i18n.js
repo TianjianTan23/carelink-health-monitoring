@@ -11,6 +11,9 @@ export function setLanguage(value) {
 }
 
 export const EN = Object.freeze({
+  'KY-039 原始信号不是 BPM。此处为显示逻辑概念，尚未写入 ESP32。': 'Raw KY-039 signals are not BPM. This is a display concept, not ESP32 firmware.',
+  '心率不可用场景不会生成替代测量值。': 'Unavailable heart rate never generates replacement measurements.',
+  '请检查边界顺序：严重低值 < 平稳下限 < 平稳上限 < 严重高值。': 'Check the order: severe low < stable lower < stable upper < severe high.',
   '安护 CareLink': 'CareLink', '安护': 'CareLink',
   '跳转至主要内容': 'Skip to main content',
   '安心照护中心': 'CareLink Care Center', '演示工作空间': 'Demo workspace',
@@ -28,7 +31,7 @@ export const EN = Object.freeze({
   '连接每一份健康数据，': 'Keep health information connected.',
   '让专业照护与家人的牵挂，时刻相伴。': 'Bring professional care and family support together.',
   '安心守护': 'Care, connected', '跌倒与日常状态监测': 'Fall and daily activity monitoring',
-  '心率': 'Heart rate', '血氧': 'SpO₂', '温度': 'Temperature',
+  '心率': 'Heart rate', '温度': 'Temperature',
   '模拟数据 · 仅作界面展示': 'Mock data · UI demonstration only',
   '专业视角，温暖连接': 'Professional care. A human connection.',
   'UI 原型体验': 'Interactive UI demo', '欢迎来到安护': 'WELCOME TO CARELINK',
@@ -140,7 +143,6 @@ export const EN = Object.freeze({
   '跌倒事件锁定警报页；严重数值异常优先显示 VALUE ALERT。人工确认机制由后端与固件接入。': 'Fall events keep the alert page visible. Severe reading deviations prioritize VALUE ALERT. Acknowledgement requires backend and firmware integration.',
   '缺失就是缺失': 'Missing means missing',
   '无法采集时用 ---，离线或过期单独显示，避免旧数值看起来仍然有效。': 'Use --- for unavailable readings. Show offline and stale states explicitly so old values do not look current.',
-  'KY-005 仅保留红外发射功能，不提供心率/血氧读数。此处为显示逻辑概念，尚未写入 ESP32。': 'KY-005 is retained for IR transmission and provides no HR/SpO₂ readings. This is a display concept, not ESP32 firmware.',
   '预览患者': 'Preview patient',
   '调整范围，观察三种状态颜色如何变化。': 'Adjust the ranges to explore how status colors change.',
   '仅本次会话生效': 'This session only',
@@ -158,7 +160,6 @@ export const EN = Object.freeze({
   '演示控制台': 'Demo controls',
   '切换一位虚构患者的情况，观察医护端、家属端和小屏同步变化。': 'Change a fictional patient’s scenario and see it reflected in clinician, family and device views.',
   '演示患者': 'Demo patient',
-  'KY-005 模式会停用心率与血氧，不会生成替代测量值。': 'KY-005 mode makes HR and SpO₂ unavailable. It does not generate replacement measurements.',
   '暂停模拟更新（可测试过期状态）': 'Pause updates (test stale data)',
   '恢复每 5 秒模拟更新': 'Resume updates every 5 seconds',
   '重置所有演示数据': 'Reset all demo data',
@@ -172,7 +173,6 @@ export const EN = Object.freeze({
   '已恢复默认虚构数据': 'Default mock data restored',
   '已恢复默认演示规则': 'Default demo rules restored',
   '已进入演示，未进行身份验证': 'Demo opened. No identity verification was performed.',
-  '请检查边界顺序：严重低值 < 平稳下限 < 平稳上限 < 严重高值；血氧范围须在 0–100 之间。': 'Check the order: severe low < stable lower < stable upper < severe high. SpO₂ limits must be between 0 and 100.',
   '演示规则已更新，仅本次会话有效': 'Demo rules updated for this session only.',
   '数据待确认': 'Data unverified', '尚无读数': 'No readings yet',
   '跌倒监测暂不可用': 'Fall monitoring unavailable',
@@ -183,8 +183,8 @@ export const EN = Object.freeze({
   '超出演示平稳范围': ' outside the stable demo range',
   '各项数据处于演示平稳范围': 'All readings are within the demo’s stable ranges',
   '轻度异常': 'Mild deviation', '严重异常': 'Severe deviation',
-  '跌倒警报': 'Fall alert', 'MAX 信号不稳': 'MAX signal unreliable',
-  'KY-005 备用模式': 'KY-005 fallback mode', '数据过期': 'Stale readings',
+  '跌倒警报': 'Fall alert', '心率信号不稳': 'Heart-rate signal unreliable',
+  '心率暂不可用': 'Heart rate unavailable', '数据过期': 'Stale readings',
   '高血压病史；定期随访。': 'History of hypertension; regular follow-up.',
   '慢性呼吸系统疾病史；需关注日常活动。': 'History of chronic respiratory disease; monitor daily activity.',
   '术后康复期；步行时使用辅助器具。': 'Postoperative rehabilitation; uses a walking aid.',
@@ -212,7 +212,7 @@ export function translate(source, locale = language) {
   if (locale !== 'en') return text;
   // Dynamic messages use explicit patterns, before catalog fragments are resolved.
   let value = text
-    .replace(/^(心率|血氧|温度)(信号不稳|暂不可用|超出演示严重范围|超出演示平稳范围)$/, (_, metric, quality) => `${translate(metric,'en')}: ${translate(quality,'en').trim()}`)
+    .replace(/^(心率|温度)(信号不稳|暂不可用|超出演示严重范围|超出演示平稳范围)$/, (_, metric, quality) => `${translate(metric,'en')}: ${translate(quality,'en').trim()}`)
     .replace(/^查看(.+)详情，(.+)$/, (_, name, status) => `View ${translate(name,'en')}: ${translate(status,'en')}`)
     .replace(/^(.+)的虚构头像$/, (_, name) => `Fictional avatar for ${translate(name,'en')}`)
     .replace(/^(.+)最近十分钟模拟趋势，最低 ([\d.]+)，最高 ([\d.]+) (.+)$/, (_, metric, min, max, unit) => `Mock ${translate(metric,'en')} trend over 10 minutes; minimum ${min}, maximum ${max} ${unit}`)

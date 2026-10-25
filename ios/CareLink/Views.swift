@@ -96,7 +96,7 @@ struct LoginView: View {
                     Picker(store.t("演示模式", "Demo mode"), selection: $mode) {
                         Text("Pro").tag(AppMode.pro); Text("Basic").tag(AppMode.basic)
                     }.pickerStyle(.segmented).accessibilityIdentifier("loginMode")
-                    Label(mode == .pro ? store.t("医护视角：多患者、历史、原始数据与 AI", "Clinician view: multiple patients, history, raw data & AI") : store.t("患者/家属视角：已关联患者的四项关键指标", "Patient/family view: four key metrics for your linked patient"), systemImage: mode == .pro ? "person.2" : "heart")
+                    Label(mode == .pro ? store.t("医护视角：多患者、历史、原始数据与 AI", "Clinician view: multiple patients, history, raw data & AI") : store.t("患者/家属视角：已关联患者的关键监测指标", "Patient/family view: essential monitoring metrics for your linked patient"), systemImage: mode == .pro ? "person.2" : "heart")
                         .font(.subheadline)
                     VStack(alignment: .leading, spacing: 12) {
                         Text(store.t("邮箱或用户名", "Email or username")).font(.subheadline)
@@ -271,6 +271,11 @@ struct MetricCard: View {
                 Text(key.unit).font(.caption).foregroundStyle(.secondary)
             }
             Text(store.qualityNote(reading, key: key)).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            if key == .hr {
+                Text(store.heartRateConnection(reading)).font(.caption2).foregroundStyle(.secondary)
+                Text("\(store.t("心率更新", "Heart-rate updated")) · \(store.time(store.heartRateUpdatedAt(reading)))")
+                    .font(.caption2.monospacedDigit()).foregroundStyle(.secondary)
+            }
         }.frame(maxWidth: .infinity, minHeight: 150, alignment: .topLeading).careCard()
             .accessibilityElement(children: .combine)
     }

@@ -9,7 +9,7 @@ test('triage covers all demo scenes and distinguishes invalid data from healthy 
 });
 test('fall stays red even when sensor is offline; known abnormalities survive incomplete data',()=>{
   const r=makeReading('p001','fall',now);r.connected=false;assert.equal(triage(r,DEFAULT_RULES,now).level,'red');assert.equal(triage(r,DEFAULT_RULES,now).incomplete,true);
-  const a=makeReading('p001','mild',now);a.metrics.spo2={value:null,quality:'unavailable'};assert.equal(triage(a,DEFAULT_RULES,now).level,'yellow');
+  const a=makeReading('p001','mild',now);a.metrics.temp={value:null,quality:'unavailable'};assert.equal(triage(a,DEFAULT_RULES,now).level,'yellow');
 });
 test('poor/absent/expired measurements never show as valid current numbers',()=>{
   for(const scene of ['poor','unavailable','offline','stale','noData'])assert.equal(displayMetric(makeReading('p001',scene,now),'hr',DEFAULT_RULES,now).text,'—',scene);
@@ -17,7 +17,6 @@ test('poor/absent/expired measurements never show as valid current numbers',()=>
 });
 test('configurable bounds and exact boundary behavior',()=>{
   assert.equal(severity('hr',45),'yellow');assert.equal(severity('hr',44.9),'red');assert.equal(severity('hr',60),'green');assert.equal(severity('hr',100),'green');assert.equal(severity('hr',130),'yellow');assert.equal(severity('hr',131),'red');
-  assert.equal(severity('spo2',90),'yellow');assert.equal(severity('spo2',95),'green');
   const rules=structuredClone(DEFAULT_RULES);rules.hr.mildHigh=70;assert.equal(triage(makeReading('p001','normal',now),rules,now).level,'yellow');
 });
 test('stale after timeout, future/missing timestamp is not green',()=>{
@@ -26,7 +25,7 @@ test('stale after timeout, future/missing timestamp is not green',()=>{
 test('1602 frames always have exactly two ASCII rows of 16 characters; alarm takes priority',()=>{
   for(const scene of ['normal','mild','severe','fall','poor','unavailable','offline','stale','noData'])for(const frame of lcdFrames(makeReading('p001',scene,now),DEFAULT_RULES,now)){assert.equal(frame.length,2);for(const row of frame){assert.equal(row.length,16);assert.match(row,/^[\x20-\x7e]{16}$/);}}
   assert.match(lcdFrames(makeReading('p001','fall',now),DEFAULT_RULES,now)[0][0],/FALL DETECTED/);
-  const a=lcdFrames(makeReading('p001','unavailable',now),DEFAULT_RULES,now);assert.match(a[0][0],/HR:--- O2:---/);
+  const a=lcdFrames(makeReading('p001','unavailable',now),DEFAULT_RULES,now);assert.match(a[0][0],/HR:--- BPM/);
 });
 test('patient-scoped scenarios, history windows, no fake AI and reset',async()=>{
   const s=new MockService();const all=await s.getPatients();assert.equal(all.length,8);assert.equal(new Set(all.map(p=>p.id)).size,8);

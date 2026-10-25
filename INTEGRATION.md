@@ -6,9 +6,9 @@
 
 以下硬件与 LCD 约定保留原工程内容，尚不等于可烧录固件：
 
-## 5. KY-005 接入决策
+## 5. KY-039 心率接入准备（2026-10-26）
 
-团队已确认使用 KY-005。根据模块厂商资料，它是红外 LED 发射模块，不能独立测量 HR / SpO₂。若不用 MAX30102，当前四项 UI 仍保留心率、血氧卡片，但设为 unavailable，不生成替代值。红外模块的实际用途（例如信号发送）需由组员定义；本 UI 不假装它提供生命体征读数。
+本轮按用户要求改为 KY-039 计划，血氧产品 UI 已全部移除。原 KY-005/MAX30102 方案不代表当前心率能力。原始模拟信号不能当作 BPM；算法与数据契约尚未在本地工程找到验证证据。默认不启用真实心率数值，见 [KY039_UI_UPDATE.md](KY039_UI_UPDATE.md)。
 
 ## 6. LCD 1602A 固件集成规范
 
@@ -17,18 +17,18 @@
 标准页面（下划线在此仅代表空格，实际写入空格）：
 
 ```text
-HR:76 O2:98%    
-SURF T:36.6C    
+HR:76 BPM
+SURF T:36.6C
 ```
 
 第二页：
 
 ```text
-FALL:NONE       
+FALL:NONE
 DEMO / SIMULATED
 ```
 
-跌倒事件优先且锁定：
+以下跌倒警报帧仅用于明确标记的 Mock 或可信事件接口；硬件原始 alarm 不触发它：
 
 ```text
 ! FALL DETECTED!
@@ -38,15 +38,15 @@ CHECK PERSON NOW
 无 HR/SpO₂：
 
 ```text
-HR:--- O2:---%  
-SURF T:36.6C    
+HR:--- BPM
+SURF T:36.6C
 ```
 
 离线/过期：
 
 ```text
-DEVICE OFFLINE  
-HR:--- O2:---   
+DEVICE OFFLINE
+HR:--- BPM
 ```
 
 过期时第一行改成 `DATA STALE`。严重数值异常优先轮播 `! VALUE ALERT !` / `CHECK PERSON NOW`，轻度异常显示 `VALUE ATTENTION` / `PLEASE CHECK`。每 3 秒翻页；跌倒页保持优先，不自动因为断线消失。实际刷新频率与声音/灯光策略由固件组确认，KY-005 不应被描述成可见警示灯或生理传感器。

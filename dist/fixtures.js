@@ -23,8 +23,9 @@ export const DEMO_PATIENTS = [
           "quality": "good"
         },
         "spo2": {
-          "value": 98,
-          "quality": "good"
+          "value": null,
+          "quality": "unavailable",
+          "available": false
         },
         "temp": {
           "value": 36.4,
@@ -47,8 +48,8 @@ export const DEMO_PATIENTS = [
           "y": 0.2,
           "z": 0.1
         },
-        "ir": 82000,
-        "red": 69000,
+        "ir": null,
+        "red": null,
         "object_temperature_c": 36.4,
         "ambient_temperature_c": 24.1
       },
@@ -81,12 +82,13 @@ export const DEMO_PATIENTS = [
       "connected": true,
       "metrics": {
         "hr": {
-          "value": 74,
+          "value": 140,
           "quality": "good"
         },
         "spo2": {
-          "value": 87,
-          "quality": "good"
+          "value": null,
+          "quality": "unavailable",
+          "available": false
         },
         "temp": {
           "value": 36.5,
@@ -109,8 +111,8 @@ export const DEMO_PATIENTS = [
           "y": 0.2,
           "z": 0.1
         },
-        "ir": 82000,
-        "red": 69000,
+        "ir": null,
+        "red": null,
         "object_temperature_c": 36.5,
         "ambient_temperature_c": 24.1
       },
@@ -147,8 +149,9 @@ export const DEMO_PATIENTS = [
           "quality": "good"
         },
         "spo2": {
-          "value": 98,
-          "quality": "good"
+          "value": null,
+          "quality": "unavailable",
+          "available": false
         },
         "temp": {
           "value": 36.5,
@@ -171,8 +174,8 @@ export const DEMO_PATIENTS = [
           "y": 0.2,
           "z": 0.1
         },
-        "ir": 82000,
-        "red": 69000,
+        "ir": null,
+        "red": null,
         "object_temperature_c": 36.5,
         "ambient_temperature_c": 24.1
       },
@@ -209,8 +212,9 @@ export const DEMO_PATIENTS = [
           "quality": "good"
         },
         "spo2": {
-          "value": 98,
-          "quality": "good"
+          "value": null,
+          "quality": "unavailable",
+          "available": false
         },
         "temp": {
           "value": 36.6,
@@ -233,8 +237,8 @@ export const DEMO_PATIENTS = [
           "y": 0.2,
           "z": 0.1
         },
-        "ir": 82000,
-        "red": 69000,
+        "ir": null,
+        "red": null,
         "object_temperature_c": 36.6,
         "ambient_temperature_c": 24.1
       },
@@ -271,8 +275,9 @@ export const DEMO_PATIENTS = [
           "quality": "good"
         },
         "spo2": {
-          "value": 98,
-          "quality": "good"
+          "value": null,
+          "quality": "unavailable",
+          "available": false
         },
         "temp": {
           "value": 36.6,
@@ -295,8 +300,8 @@ export const DEMO_PATIENTS = [
           "y": 0.2,
           "z": 0.1
         },
-        "ir": 82000,
-        "red": 69000,
+        "ir": null,
+        "red": null,
         "object_temperature_c": 36.6,
         "ambient_temperature_c": 24.1
       },
@@ -333,8 +338,9 @@ export const DEMO_PATIENTS = [
           "quality": "good"
         },
         "spo2": {
-          "value": 98,
-          "quality": "good"
+          "value": null,
+          "quality": "unavailable",
+          "available": false
         },
         "temp": {
           "value": 38.1,
@@ -357,8 +363,8 @@ export const DEMO_PATIENTS = [
           "y": 0.2,
           "z": 0.1
         },
-        "ir": 82000,
-        "red": 69000,
+        "ir": null,
+        "red": null,
         "object_temperature_c": 38.1,
         "ambient_temperature_c": 24.1
       },
@@ -395,8 +401,9 @@ export const DEMO_PATIENTS = [
           "quality": "poor"
         },
         "spo2": {
-          "value": 82,
-          "quality": "poor"
+          "value": null,
+          "quality": "unavailable",
+          "available": false
         },
         "temp": {
           "value": 36.7,
@@ -419,8 +426,8 @@ export const DEMO_PATIENTS = [
           "y": 0.2,
           "z": 0.1
         },
-        "ir": 82000,
-        "red": 69000,
+        "ir": null,
+        "red": null,
         "object_temperature_c": 36.7,
         "ambient_temperature_c": 24.1
       },
@@ -457,8 +464,9 @@ export const DEMO_PATIENTS = [
           "quality": "good"
         },
         "spo2": {
-          "value": 98,
-          "quality": "good"
+          "value": null,
+          "quality": "unavailable",
+          "available": false
         },
         "temp": {
           "value": 36.7,
@@ -481,8 +489,8 @@ export const DEMO_PATIENTS = [
           "y": 0.2,
           "z": 0.1
         },
-        "ir": 82000,
-        "red": 69000,
+        "ir": null,
+        "red": null,
         "object_temperature_c": 36.7,
         "ambient_temperature_c": 24.1
       },
@@ -503,10 +511,6 @@ export const DEMO_RULES = {
     "mildLow": 60,
     "mildHigh": 100,
     "severeHigh": 130
-  },
-  "spo2": {
-    "severeLow": 90,
-    "mildLow": 95
   },
   "temp": {
     "severeLow": 34,

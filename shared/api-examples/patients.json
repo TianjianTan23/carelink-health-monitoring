@@ -22,8 +22,9 @@
           "quality": "good"
         },
         "spo2": {
-          "value": 98,
-          "quality": "good"
+          "value": null,
+          "quality": "unavailable",
+          "available": false
         },
         "temp": {
           "value": 36.4,
@@ -92,8 +93,9 @@
           "quality": "good"
         },
         "spo2": {
-          "value": 87,
-          "quality": "good"
+          "value": null,
+          "quality": "unavailable",
+          "available": false
         },
         "temp": {
           "value": 36.5,
@@ -162,8 +164,9 @@
           "quality": "good"
         },
         "spo2": {
-          "value": 98,
-          "quality": "good"
+          "value": null,
+          "quality": "unavailable",
+          "available": false
         },
         "temp": {
           "value": 36.5,
@@ -232,8 +235,9 @@
           "quality": "good"
         },
         "spo2": {
-          "value": 98,
-          "quality": "good"
+          "value": null,
+          "quality": "unavailable",
+          "available": false
         },
         "temp": {
           "value": 36.6,
@@ -302,8 +306,9 @@
           "quality": "good"
         },
         "spo2": {
-          "value": 98,
-          "quality": "good"
+          "value": null,
+          "quality": "unavailable",
+          "available": false
         },
         "temp": {
           "value": 36.6,
@@ -372,8 +377,9 @@
           "quality": "good"
         },
         "spo2": {
-          "value": 98,
-          "quality": "good"
+          "value": null,
+          "quality": "unavailable",
+          "available": false
         },
         "temp": {
           "value": 38.1,
@@ -442,8 +448,9 @@
           "quality": "poor"
         },
         "spo2": {
-          "value": 82,
-          "quality": "poor"
+          "value": null,
+          "quality": "unavailable",
+          "available": false
         },
         "temp": {
           "value": 36.7,
@@ -512,8 +519,9 @@
           "quality": "good"
         },
         "spo2": {
-          "value": 98,
-          "quality": "good"
+          "value": null,
+          "quality": "unavailable",
+          "available": false
         },
         "temp": {
           "value": 36.7,

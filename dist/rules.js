@@ -2,8 +2,7 @@ import {DEMO_RULES} from './fixtures.js';
 // ONLY interaction/demo rules. Not validated clinical decision criteria.
 export const DEFAULT_RULES = Object.freeze(DEMO_RULES);
 export const METRICS = {
-  hr:{name:'心率',unit:'bpm',sensor:'MAX30102',icon:'heart'},
-  spo2:{name:'血氧',unit:'%',sensor:'MAX30102',icon:'drop'},
+  hr:{name:'心率',unit:'BPM',sensor:'KY-039 · 接入待验证',icon:'heart'},
   temp:{name:'温度',unit:'°C',sensor:'MLX90614 · 表面测温',icon:'temp'}
 };
 export const STATUS = {
@@ -16,10 +15,9 @@ export function isFresh(reading, rules=DEFAULT_RULES, now=Date.now()) {
   const age = now - Date.parse(reading?.measuredAt);
   return reading?.connected === true && Number.isFinite(age) && age >= -5000 && age <= rules.staleAfterSeconds * 1000;
 }
-export function usable(metric) { return metric?.quality === 'good' && typeof metric.value === 'number' && Number.isFinite(metric.value); }
+export function usable(metric) { return metric?.available !== false && metric?.quality === 'good' && typeof metric.value === 'number' && Number.isFinite(metric.value); }
 export function severity(key,value,rules=DEFAULT_RULES) {
   const r=rules[key];
-  if(key==='spo2') return value<r.severeLow?'red':value<r.mildLow?'yellow':'green';
   return value<r.severeLow || value>r.severeHigh ? 'red' : value<r.mildLow || value>r.mildHigh ? 'yellow' : 'green';
 }
 export function triage(reading,rules=DEFAULT_RULES,now=Date.now()) {
@@ -32,7 +30,7 @@ export function triage(reading,rules=DEFAULT_RULES,now=Date.now()) {
   if(!fresh) reasons.push(reading.connected?'数据已过期':'设备离线');
   for(const key of Object.keys(METRICS)) {
     const m=reading.metrics?.[key];
-    if(!fresh || !usable(m)) { incomplete=true; if(fresh) reasons.push(`${METRICS[key].name}${m?.quality==='poor'?'信号不稳':'暂不可用'}`); continue; }
+    if(!fresh || !usable(m) || key==='hr'&&m.value<=0) { incomplete=true; if(fresh) reasons.push(`${METRICS[key].name}${m?.quality==='poor'?'信号不稳':'暂不可用'}`); continue; }
     const level=severity(key,m.value,rules);levels.push(level);
     if(level!=='green') reasons.push(`${METRICS[key].name}${level==='red'?'超出演示严重范围':'超出演示平稳范围'}`);
   }
@@ -44,17 +42,17 @@ export function displayMetric(reading,key,rules=DEFAULT_RULES,now=Date.now()) {
   const m=reading?.metrics?.[key];
   if(!reading) return {text:'—',note:'尚无数据',level:'unknown'};
   if(!isFresh(reading,rules,now)) return {text:'—',note:reading?.connected?'数据已过期':'设备离线',level:'unknown'};
-  if(!usable(m)) return {text:'—',note:m?.quality==='poor'?'信号不稳 · 请重新采集':'暂不可用',level:'unknown'};
+  if(!usable(m)||key==='hr'&&m.value<=0) return {text:'—',note:m?.quality==='poor'?'信号不稳 · 请重新采集':'暂不可用',level:'unknown'};
   return {text:key==='temp'?m.value.toFixed(1):String(Math.round(m.value)),note:'模拟读数',level:severity(key,m.value,rules)};
 }
 export function lcdFrames(reading,rules=DEFAULT_RULES,now=Date.now()) {
   const fit=s=>s.slice(0,16).padEnd(16,' ');
   const row=(a,b)=>[fit(a),fit(b)];
   if(reading?.fall?.active) return [row('! FALL DETECTED!','CHECK PERSON NOW')];
-  if(!isFresh(reading,rules,now)) return [row(reading?.connected?'DATA STALE':'DEVICE OFFLINE','HR:--- O2:---')];
+  if(!isFresh(reading,rules,now)) return [row(reading?.connected?'DATA STALE':'DEVICE OFFLINE','HR:--- BPM')];
   const t=triage(reading,rules,now);
   const v=k=>displayMetric(reading,k,rules,now).text.replace('—','---');
-  const frames=[row(`HR:${v('hr')} O2:${v('spo2')}%`,`SURF T:${v('temp')}C`),row(`FALL:${reading.fall?.quality==='good'?'NONE':'UNKNOWN'}`,t.incomplete?'SENSOR CHECK':'DEMO / SIMULATED')];
+  const frames=[row(`HR:${v('hr')} BPM`,`SURF T:${v('temp')}C`),row(`FALL:${reading.fall?.quality==='good'?'NONE':'UNKNOWN'}`,t.incomplete?'SENSOR CHECK':'DEMO / SIMULATED')];
   if(t.level==='red') frames.unshift(row('! VALUE ALERT !','CHECK PERSON NOW'));
   else if(t.level==='yellow') frames.unshift(row('VALUE ATTENTION','PLEASE CHECK'));
   return frames;

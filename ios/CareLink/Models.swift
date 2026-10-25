@@ -21,8 +21,22 @@ enum Quality: String, Codable {
     }
 }
 
-struct Metric: Codable { var value: Double?; var quality: Quality; var available: Bool? = nil }
-struct Metrics: Codable { var hr: Metric; var spo2: Metric; var temp: Metric }
+struct Metric: Codable {
+    var value: Double?
+    var quality: Quality
+    var available: Bool? = nil
+    var measuredAt: Date? = nil
+    var sensor: String? = nil
+    var connected: Bool? = nil
+    var state: String? = nil
+    var calculationValidated: Bool? = nil
+}
+struct Metrics: Codable {
+    var hr: Metric
+    // Deprecated wire compatibility only. Never part of MetricKey.
+    var spo2: Metric? = nil
+    var temp: Metric
+}
 struct FallEvent: Codable { var active: Bool; var quality: Quality; var eventAt: Date? }
 struct Vector3: Codable { var x: Double; var y: Double; var z: Double }
 struct RawData: Codable {
@@ -133,7 +147,7 @@ struct ValueBounds: Codable {
 struct LowerBounds: Codable { var severeLow: Double; var mildLow: Double }
 struct DemoRules: Codable {
     var hr: ValueBounds
-    var spo2: LowerBounds
+    var spo2: LowerBounds?
     var temp: ValueBounds
     var staleAfterSeconds: Double
 }

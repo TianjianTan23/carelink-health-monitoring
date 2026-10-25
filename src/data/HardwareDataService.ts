@@ -1,3 +1,4 @@
+import {SensorReadingSchema} from './models';
 import rules from '../../shared/demo-rules.json';
 import type {Alert,AppMode,Metric,Patient,Prediction,SensorReading,Session} from './models';
 import {DataError,type DataService} from './service';
@@ -7,7 +8,7 @@ const unavailable=():Metric=>({value:null,quality:'unavailable',available:false}
 // A local device workspace, never a fabricated clinical identity or authenticated session.
 export class HardwareDataService implements DataService {
   readonly mode='hardware' as const;
-  readonly metricKeys=['temp','ambient','motion'] as ('temp'|'ambient'|'motion')[];
+  readonly metricKeys=['hr','temp','ambient','motion'] as ('hr'|'temp'|'ambient'|'motion')[];
   readonly rules;
   readonly pollIntervalMs;
   private reading:SensorReading|null=null;
@@ -44,6 +45,24 @@ export class HardwareDataService implements DataService {
     if(this.pending)return this.pending;
     this.pending=this.receive().finally(()=>{this.pending=null;});return this.pending;
   }
+  private heartRate(d:HardwareSnapshot['data']):Metric{
+    const stamp=SensorReadingSchema.shape.measuredAt.safeParse(d.heart_rate_measured_at);
+    const parsed=stamp.success?Date.parse(stamp.data):NaN;
+    const measuredAt=Number.isFinite(parsed)?new Date(parsed).toISOString():null;
+    const base={value:null,quality:'unavailable' as const,available:false,sensor:'KY-039',connected:d.heart_rate_connected??null,measuredAt,calculationValidated:false};
+    if(d.heart_rate_connected===false)return {...base,state:'disconnected'};
+    const supplied=d.heart_signal_raw!=null||d.heart_rate_bpm!=null||d.heart_rate_connected!==undefined;
+    if(!this.bridge.config.heartRateContractConfirmed||d.heart_rate_sensor!=='KY-039'||d.heart_rate_algorithm_validated!==true)
+      return {...base,state:supplied?'unvalidated':'waiting'};
+    if(d.heart_rate_connected!==true)return {...base,state:'waiting'};
+    if(d.heart_rate_quality==='poor')return {...base,calculationValidated:true,quality:'poor',state:'poor'};
+    const bpm=d.heart_rate_bpm;
+    if(d.heart_rate_ok!==true||d.heart_rate_quality!=='good'||typeof bpm!=='number'||!Number.isFinite(bpm)||bpm<=0||!measuredAt)
+      return {...base,calculationValidated:true,state:'waiting'};
+    if(this.clock()-parsed>this.bridge.config.staleAfterMs||parsed>this.clock()+5000)return {...base,calculationValidated:true,state:'stale'};
+    // Do not compare raw ADC amplitude with a heart-rate range. Only an explicit computed BPM is eligible.
+    return {value:bpm,quality:'good',available:true,sensor:'KY-039',connected:true,measuredAt,state:'valid',calculationValidated:true};
+  }
   private async receive(){
     this.allowed();
     let snapshot:HardwareSnapshot;
@@ -56,12 +75,12 @@ export class HardwareDataService implements DataService {
     if(this.reading?.receivedAt===snapshot.received_at){this.reading={...this.reading,connected:true};return this.getPatients();}
     const metric=(value:number|null|undefined,ok:boolean):Metric=>ok&&typeof value==='number'&&Number.isFinite(value)?{value,quality:'good',available:true}:unavailable();
     this.reading={patientId:this.id,deviceId:d.device_id,measuredAt:snapshot.received_at,receivedAt:snapshot.received_at,connected:true,
-      metrics:{hr:unavailable(),spo2:unavailable(),temp:metric(d.object_temp_c,d.mlx90614_ok),ambient:metric(d.ambient_temp_c,d.mlx90614_ok),motion:metric(d.accel_total_g,d.mpu6050_ok)},
+      metrics:{hr:this.heartRate(d),temp:metric(d.object_temp_c,d.mlx90614_ok),ambient:metric(d.ambient_temp_c,d.mlx90614_ok),motion:metric(d.accel_total_g,d.mpu6050_ok)},
       fall:{active:false,quality:'unavailable'}, // Raw acceleration alarms are NOT validated fall classifications.
       raw:{accel_m_s2:null,gyro_deg_s:null,ir:null,red:null,object_temperature_c:d.object_temp_c??null,ambient_temperature_c:d.ambient_temp_c??null},
       hardware:{motionConnected:d.mpu6050_ok,temperatureConnected:d.mlx90614_ok,rawAlarm:d.alarm??null,
         accelG:[d.accel_x_g,d.accel_y_g,d.accel_z_g].every(v=>typeof v==='number')?{x:d.accel_x_g!,y:d.accel_y_g!,z:d.accel_z_g!}:null,
-        peakG:d.accel_peak_g??null,uptimeMs:d.uptime_ms,timestampBasis:'bridge_received'},
+        rawSignalAdc:d.heart_signal_raw??null,peakG:d.accel_peak_g??null,uptimeMs:d.uptime_ms,timestampBasis:'bridge_received'},
       ai:{state:'not_connected',model:null,confidence:null},source:'device'};
     this.history.push(this.reading);
     this.history=this.history.filter(r=>Date.parse(r.receivedAt)>=this.clock()-600000).slice(-1200);

@@ -11,6 +11,8 @@ export const HardwareConfigSchema=z.object({
   staleAfterMs:z.number().int().min(1000).max(300000),
   requestTimeoutMs:z.number().int().min(500).max(30000),
   deviceId:z.string().min(1).optional(),
+  // Enable only after the hardware team has confirmed the KY-039 algorithm and payload contract.
+  heartRateContractConfirmed:z.boolean().default(false),
 });
 export type HardwareConfig=z.infer<typeof HardwareConfigSchema>;
 const number=z.number().finite().nullable().optional();
@@ -20,6 +22,9 @@ export const HardwarePayloadSchema=z.object({
   ambient_temp_c:number,object_temp_c:number,
   mpu6050_ok:z.boolean(),mlx90614_ok:z.boolean(),alarm:z.boolean().optional(),
   heart_rate_bpm:number,heart_rate_ok:z.boolean().optional(),heart_signal_raw:number,
+  heart_rate_sensor:z.string().optional(),heart_rate_connected:z.boolean().optional(),
+  heart_rate_algorithm_validated:z.boolean().optional(),heart_rate_quality:z.enum(['good','poor','unavailable','unknown']).optional(),
+  heart_rate_measured_at:z.string().nullable().optional(),
 }).passthrough();
 export const HardwareSnapshotSchema=z.object({
   ok:z.literal(true),received_at:z.string().datetime({offset:true}),data:HardwarePayloadSchema,

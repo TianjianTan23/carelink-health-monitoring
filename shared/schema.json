@@ -26,6 +26,37 @@
         },
         "available": {
           "type": "boolean"
+        },
+        "measuredAt": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "sensor": {
+          "type": "string"
+        },
+        "connected": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "state": {
+          "enum": [
+            "waiting",
+            "unvalidated",
+            "valid",
+            "poor",
+            "disconnected",
+            "unavailable",
+            "stale"
+          ]
+        },
+        "calculationValidated": {
+          "type": "boolean",
+          "description": "Basic algorithm/contract validation; not clinical validation."
         }
       }
     },
@@ -86,7 +117,6 @@
           "type": "object",
           "required": [
             "hr",
-            "spo2",
             "temp"
           ],
           "properties": {
@@ -94,7 +124,8 @@
               "$ref": "#/$defs/Metric"
             },
             "spo2": {
-              "$ref": "#/$defs/Metric"
+              "$ref": "#/$defs/Metric",
+              "description": "Deprecated compatibility field; never rendered or used for product triage."
             },
             "temp": {
               "$ref": "#/$defs/Metric"

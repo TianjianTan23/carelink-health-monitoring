@@ -14,8 +14,9 @@
           "quality": "good"
         },
         "spo2": {
-          "value": 98,
-          "quality": "good"
+          "value": null,
+          "quality": "unavailable",
+          "available": false
         },
         "temp": {
           "value": 36.4,
@@ -38,8 +39,8 @@
           "y": 0.2,
           "z": 0.1
         },
-        "ir": 82000,
-        "red": 69000,
+        "ir": null,
+        "red": null,
         "object_temperature_c": 36.4,
         "ambient_temperature_c": 24.1
       },
@@ -69,8 +70,9 @@
           "quality": "good"
         },
         "spo2": {
-          "value": 98,
-          "quality": "good"
+          "value": null,
+          "quality": "unavailable",
+          "available": false
         },
         "temp": {
           "value": 36.4,
@@ -93,8 +95,8 @@
           "y": 0.2,
           "z": 0.1
         },
-        "ir": 82000,
-        "red": 69000,
+        "ir": null,
+        "red": null,
         "object_temperature_c": 36.4,
         "ambient_temperature_c": 24.1
       },
@@ -124,8 +126,9 @@
           "quality": "good"
         },
         "spo2": {
-          "value": 98,
-          "quality": "good"
+          "value": null,
+          "quality": "unavailable",
+          "available": false
         },
         "temp": {
           "value": 38.1,
@@ -148,8 +151,8 @@
           "y": 0.2,
           "z": 0.1
         },
-        "ir": 82000,
-        "red": 69000,
+        "ir": null,
+        "red": null,
         "object_temperature_c": 38.1,
         "ambient_temperature_c": 24.1
       },
@@ -175,12 +178,13 @@
       "connected": true,
       "metrics": {
         "hr": {
-          "value": 73,
+          "value": 140,
           "quality": "good"
         },
         "spo2": {
-          "value": 87,
-          "quality": "good"
+          "value": null,
+          "quality": "unavailable",
+          "available": false
         },
         "temp": {
           "value": 36.4,
@@ -203,8 +207,8 @@
           "y": 0.2,
           "z": 0.1
         },
-        "ir": 82000,
-        "red": 69000,
+        "ir": null,
+        "red": null,
         "object_temperature_c": 36.4,
         "ambient_temperature_c": 24.1
       },
@@ -234,8 +238,9 @@
           "quality": "good"
         },
         "spo2": {
-          "value": 98,
-          "quality": "good"
+          "value": null,
+          "quality": "unavailable",
+          "available": false
         },
         "temp": {
           "value": 36.4,
@@ -258,8 +263,8 @@
           "y": 0.2,
           "z": 0.1
         },
-        "ir": 82000,
-        "red": 69000,
+        "ir": null,
+        "red": null,
         "object_temperature_c": 36.4,
         "ambient_temperature_c": 24.1
       },
@@ -289,8 +294,9 @@
           "quality": "poor"
         },
         "spo2": {
-          "value": 82,
-          "quality": "poor"
+          "value": null,
+          "quality": "unavailable",
+          "available": false
         },
         "temp": {
           "value": 36.4,
@@ -313,8 +319,8 @@
           "y": 0.2,
           "z": 0.1
         },
-        "ir": 82000,
-        "red": 69000,
+        "ir": null,
+        "red": null,
         "object_temperature_c": 36.4,
         "ambient_temperature_c": 24.1
       },
@@ -399,8 +405,9 @@
           "quality": "good"
         },
         "spo2": {
-          "value": 98,
-          "quality": "good"
+          "value": null,
+          "quality": "unavailable",
+          "available": false
         },
         "temp": {
           "value": 36.4,
@@ -423,8 +430,8 @@
           "y": 0.2,
           "z": 0.1
         },
-        "ir": 82000,
-        "red": 69000,
+        "ir": null,
+        "red": null,
         "object_temperature_c": 36.4,
         "ambient_temperature_c": 24.1
       },
@@ -454,8 +461,9 @@
           "quality": "good"
         },
         "spo2": {
-          "value": 98,
-          "quality": "good"
+          "value": null,
+          "quality": "unavailable",
+          "available": false
         },
         "temp": {
           "value": 36.4,
@@ -478,8 +486,8 @@
           "y": 0.2,
           "z": 0.1
         },
-        "ir": 82000,
-        "red": 69000,
+        "ir": null,
+        "red": null,
         "object_temperature_c": 36.4,
         "ambient_temperature_c": 24.1
       },
@@ -515,8 +523,9 @@
           "quality": "good"
         },
         "spo2": {
-          "value": 98,
-          "quality": "good"
+          "value": null,
+          "quality": "unavailable",
+          "available": false
         },
         "temp": {
           "value": 36.4,
@@ -539,8 +548,8 @@
           "y": 0.2,
           "z": 0.1
         },
-        "ir": 82000,
-        "red": 69000,
+        "ir": null,
+        "red": null,
         "object_temperature_c": 36.4,
         "ambient_temperature_c": 24.1
       },
@@ -570,8 +579,9 @@
           "quality": "good"
         },
         "spo2": {
-          "value": 98,
-          "quality": "good"
+          "value": null,
+          "quality": "unavailable",
+          "available": false
         },
         "temp": {
           "value": 36.4,
@@ -594,8 +604,8 @@
           "y": 0.2,
           "z": 0.1
         },
-        "ir": 82000,
-        "red": 69000,
+        "ir": null,
+        "red": null,
         "object_temperature_c": 36.4,
         "ambient_temperature_c": 24.1
       },
@@ -625,8 +635,9 @@
           "quality": "good"
         },
         "spo2": {
-          "value": 98,
-          "quality": "good"
+          "value": null,
+          "quality": "unavailable",
+          "available": false
         },
         "temp": {
           "value": 36.4,
@@ -649,8 +660,8 @@
           "y": 0.2,
           "z": 0.1
         },
-        "ir": 82000,
-        "red": 69000,
+        "ir": null,
+        "red": null,
         "object_temperature_c": 36.4,
         "ambient_temperature_c": 24.1
       },
@@ -680,8 +691,9 @@
           "quality": "good"
         },
         "spo2": {
-          "value": 98,
-          "quality": "good"
+          "value": null,
+          "quality": "unavailable",
+          "available": false
         },
         "temp": {
           "value": 36.4,
@@ -704,8 +716,8 @@
           "y": 0.2,
           "z": 0.1
         },
-        "ir": 82000,
-        "red": 69000,
+        "ir": null,
+        "red": null,
         "object_temperature_c": 36.4,
         "ambient_temperature_c": 24.1
       },
@@ -735,8 +747,9 @@
           "quality": "good"
         },
         "spo2": {
-          "value": 98,
-          "quality": "good"
+          "value": null,
+          "quality": "unavailable",
+          "available": false
         },
         "temp": {
           "value": 36.4,
@@ -759,8 +772,8 @@
           "y": 0.2,
           "z": 0.1
         },
-        "ir": 82000,
-        "red": 69000,
+        "ir": null,
+        "red": null,
         "object_temperature_c": 36.4,
         "ambient_temperature_c": 24.1
       },
@@ -790,8 +803,9 @@
           "quality": "good"
         },
         "spo2": {
-          "value": 98,
-          "quality": "good"
+          "value": null,
+          "quality": "unavailable",
+          "available": false
         },
         "temp": {
           "value": 36.4,
@@ -814,8 +828,8 @@
           "y": 0.2,
           "z": 0.1
         },
-        "ir": 82000,
-        "red": 69000,
+        "ir": null,
+        "red": null,
         "object_temperature_c": 36.4,
         "ambient_temperature_c": 24.1
       },
@@ -829,226 +843,6 @@
       "scenario": "normal"
     },
     "expected": "red"
-  },
-  {
-    "name": "spo2-89.9",
-    "now": "2026-10-20T03:30:00.000Z",
-    "reading": {
-      "patientId": "p001",
-      "deviceId": "esp32-01",
-      "measuredAt": "2026-10-20T03:30:00.000Z",
-      "receivedAt": "2026-10-20T03:30:00.100Z",
-      "connected": true,
-      "metrics": {
-        "hr": {
-          "value": 73,
-          "quality": "good"
-        },
-        "spo2": {
-          "value": 89.9,
-          "quality": "good"
-        },
-        "temp": {
-          "value": 36.4,
-          "quality": "good"
-        }
-      },
-      "fall": {
-        "active": false,
-        "quality": "good",
-        "eventAt": null
-      },
-      "raw": {
-        "accel_m_s2": {
-          "x": 0.12,
-          "y": 0.08,
-          "z": 9.79
-        },
-        "gyro_deg_s": {
-          "x": 0.1,
-          "y": 0.2,
-          "z": 0.1
-        },
-        "ir": 82000,
-        "red": 69000,
-        "object_temperature_c": 36.4,
-        "ambient_temperature_c": 24.1
-      },
-      "ai": {
-        "state": "not_connected",
-        "model": null,
-        "result": null,
-        "confidence": null
-      },
-      "source": "mock",
-      "scenario": "normal"
-    },
-    "expected": "red"
-  },
-  {
-    "name": "spo2-90",
-    "now": "2026-10-20T03:30:00.000Z",
-    "reading": {
-      "patientId": "p001",
-      "deviceId": "esp32-01",
-      "measuredAt": "2026-10-20T03:30:00.000Z",
-      "receivedAt": "2026-10-20T03:30:00.100Z",
-      "connected": true,
-      "metrics": {
-        "hr": {
-          "value": 73,
-          "quality": "good"
-        },
-        "spo2": {
-          "value": 90,
-          "quality": "good"
-        },
-        "temp": {
-          "value": 36.4,
-          "quality": "good"
-        }
-      },
-      "fall": {
-        "active": false,
-        "quality": "good",
-        "eventAt": null
-      },
-      "raw": {
-        "accel_m_s2": {
-          "x": 0.12,
-          "y": 0.08,
-          "z": 9.79
-        },
-        "gyro_deg_s": {
-          "x": 0.1,
-          "y": 0.2,
-          "z": 0.1
-        },
-        "ir": 82000,
-        "red": 69000,
-        "object_temperature_c": 36.4,
-        "ambient_temperature_c": 24.1
-      },
-      "ai": {
-        "state": "not_connected",
-        "model": null,
-        "result": null,
-        "confidence": null
-      },
-      "source": "mock",
-      "scenario": "normal"
-    },
-    "expected": "yellow"
-  },
-  {
-    "name": "spo2-95",
-    "now": "2026-10-20T03:30:00.000Z",
-    "reading": {
-      "patientId": "p001",
-      "deviceId": "esp32-01",
-      "measuredAt": "2026-10-20T03:30:00.000Z",
-      "receivedAt": "2026-10-20T03:30:00.100Z",
-      "connected": true,
-      "metrics": {
-        "hr": {
-          "value": 73,
-          "quality": "good"
-        },
-        "spo2": {
-          "value": 95,
-          "quality": "good"
-        },
-        "temp": {
-          "value": 36.4,
-          "quality": "good"
-        }
-      },
-      "fall": {
-        "active": false,
-        "quality": "good",
-        "eventAt": null
-      },
-      "raw": {
-        "accel_m_s2": {
-          "x": 0.12,
-          "y": 0.08,
-          "z": 9.79
-        },
-        "gyro_deg_s": {
-          "x": 0.1,
-          "y": 0.2,
-          "z": 0.1
-        },
-        "ir": 82000,
-        "red": 69000,
-        "object_temperature_c": 36.4,
-        "ambient_temperature_c": 24.1
-      },
-      "ai": {
-        "state": "not_connected",
-        "model": null,
-        "result": null,
-        "confidence": null
-      },
-      "source": "mock",
-      "scenario": "normal"
-    },
-    "expected": "green"
-  },
-  {
-    "name": "spo2-98",
-    "now": "2026-10-20T03:30:00.000Z",
-    "reading": {
-      "patientId": "p001",
-      "deviceId": "esp32-01",
-      "measuredAt": "2026-10-20T03:30:00.000Z",
-      "receivedAt": "2026-10-20T03:30:00.100Z",
-      "connected": true,
-      "metrics": {
-        "hr": {
-          "value": 73,
-          "quality": "good"
-        },
-        "spo2": {
-          "value": 98,
-          "quality": "good"
-        },
-        "temp": {
-          "value": 36.4,
-          "quality": "good"
-        }
-      },
-      "fall": {
-        "active": false,
-        "quality": "good",
-        "eventAt": null
-      },
-      "raw": {
-        "accel_m_s2": {
-          "x": 0.12,
-          "y": 0.08,
-          "z": 9.79
-        },
-        "gyro_deg_s": {
-          "x": 0.1,
-          "y": 0.2,
-          "z": 0.1
-        },
-        "ir": 82000,
-        "red": 69000,
-        "object_temperature_c": 36.4,
-        "ambient_temperature_c": 24.1
-      },
-      "ai": {
-        "state": "not_connected",
-        "model": null,
-        "result": null,
-        "confidence": null
-      },
-      "source": "mock",
-      "scenario": "normal"
-    },
-    "expected": "green"
   },
   {
     "name": "temp-33.9",
@@ -1065,8 +859,9 @@
           "quality": "good"
         },
         "spo2": {
-          "value": 98,
-          "quality": "good"
+          "value": null,
+          "quality": "unavailable",
+          "available": false
         },
         "temp": {
           "value": 33.9,
@@ -1089,8 +884,8 @@
           "y": 0.2,
           "z": 0.1
         },
-        "ir": 82000,
-        "red": 69000,
+        "ir": null,
+        "red": null,
         "object_temperature_c": 36.4,
         "ambient_temperature_c": 24.1
       },
@@ -1120,8 +915,9 @@
           "quality": "good"
         },
         "spo2": {
-          "value": 98,
-          "quality": "good"
+          "value": null,
+          "quality": "unavailable",
+          "available": false
         },
         "temp": {
           "value": 34,
@@ -1144,8 +940,8 @@
           "y": 0.2,
           "z": 0.1
         },
-        "ir": 82000,
-        "red": 69000,
+        "ir": null,
+        "red": null,
         "object_temperature_c": 36.4,
         "ambient_temperature_c": 24.1
       },
@@ -1175,8 +971,9 @@
           "quality": "good"
         },
         "spo2": {
-          "value": 98,
-          "quality": "good"
+          "value": null,
+          "quality": "unavailable",
+          "available": false
         },
         "temp": {
           "value": 35.5,
@@ -1199,8 +996,8 @@
           "y": 0.2,
           "z": 0.1
         },
-        "ir": 82000,
-        "red": 69000,
+        "ir": null,
+        "red": null,
         "object_temperature_c": 36.4,
         "ambient_temperature_c": 24.1
       },
@@ -1230,8 +1027,9 @@
           "quality": "good"
         },
         "spo2": {
-          "value": 98,
-          "quality": "good"
+          "value": null,
+          "quality": "unavailable",
+          "available": false
         },
         "temp": {
           "value": 37.5,
@@ -1254,8 +1052,8 @@
           "y": 0.2,
           "z": 0.1
         },
-        "ir": 82000,
-        "red": 69000,
+        "ir": null,
+        "red": null,
         "object_temperature_c": 36.4,
         "ambient_temperature_c": 24.1
       },
@@ -1285,8 +1083,9 @@
           "quality": "good"
         },
         "spo2": {
-          "value": 98,
-          "quality": "good"
+          "value": null,
+          "quality": "unavailable",
+          "available": false
         },
         "temp": {
           "value": 39,
@@ -1309,8 +1108,8 @@
           "y": 0.2,
           "z": 0.1
         },
-        "ir": 82000,
-        "red": 69000,
+        "ir": null,
+        "red": null,
         "object_temperature_c": 36.4,
         "ambient_temperature_c": 24.1
       },
@@ -1340,8 +1139,9 @@
           "quality": "good"
         },
         "spo2": {
-          "value": 98,
-          "quality": "good"
+          "value": null,
+          "quality": "unavailable",
+          "available": false
         },
         "temp": {
           "value": 39.1,
@@ -1364,8 +1164,8 @@
           "y": 0.2,
           "z": 0.1
         },
-        "ir": 82000,
-        "red": 69000,
+        "ir": null,
+        "red": null,
         "object_temperature_c": 36.4,
         "ambient_temperature_c": 24.1
       },
@@ -1395,8 +1195,9 @@
           "quality": "good"
         },
         "spo2": {
-          "value": 98,
-          "quality": "good"
+          "value": null,
+          "quality": "unavailable",
+          "available": false
         },
         "temp": {
           "value": 36.4,
@@ -1419,8 +1220,8 @@
           "y": 0.2,
           "z": 0.1
         },
-        "ir": 82000,
-        "red": 69000,
+        "ir": null,
+        "red": null,
         "object_temperature_c": 36.4,
         "ambient_temperature_c": 24.1
       },
@@ -1451,11 +1252,12 @@
         },
         "spo2": {
           "value": null,
-          "quality": "unavailable"
+          "quality": "unavailable",
+          "available": false
         },
         "temp": {
-          "value": 36.4,
-          "quality": "good"
+          "value": null,
+          "quality": "unavailable"
         }
       },
       "fall": {
@@ -1474,8 +1276,8 @@
           "y": 0.2,
           "z": 0.1
         },
-        "ir": 82000,
-        "red": 69000,
+        "ir": null,
+        "red": null,
         "object_temperature_c": 36.4,
         "ambient_temperature_c": 24.1
       },
@@ -1505,8 +1307,9 @@
           "quality": "good"
         },
         "spo2": {
-          "value": 98,
-          "quality": "good"
+          "value": null,
+          "quality": "unavailable",
+          "available": false
         },
         "temp": {
           "value": 36.4,
@@ -1529,8 +1332,8 @@
           "y": 0.2,
           "z": 0.1
         },
-        "ir": 82000,
-        "red": 69000,
+        "ir": null,
+        "red": null,
         "object_temperature_c": 36.4,
         "ambient_temperature_c": 24.1
       },

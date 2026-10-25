@@ -35,7 +35,7 @@ test('offline bundle: login validation, both modes, scoped navigation and langua
 test('offline bundle: unavailable, poor, stale and connection failure never invent fresh values',async()=>{
  const h=await harness();await h.click('loginmode',{value:'basic'});await h.submit('loginForm');
  await h.click('scenario',{value:'unavailable'});assert.equal(h.eval('displayMetric(patient("p004").reading,"hr",mock.rules).text'),'—');
- assert.equal(h.eval('displayMetric(patient("p004").reading,"spo2",mock.rules).text'),'—');assert.match(h.app.innerHTML,/暂不可用/);
+ assert.doesNotMatch(h.app.innerHTML,/SpO₂|SpO2|血氧|Blood oxygen/i);assert.match(h.app.innerHTML,/暂不可用/);
  await h.click('scenario',{value:'poor'});await h.click('language');assert.match(h.app.innerHTML,/Unreliable signal/);assert.doesNotMatch(h.app.innerHTML,/148/);
  await h.click('scenario',{value:'stale'});assert.match(h.app.innerHTML,/Readings are stale/);assert.equal(h.eval('displayMetric(patient("p004").reading,"temp",mock.rules).text'),'—');
  const time=h.eval('state.lastUpdate');await h.change('fail',undefined,true);assert.equal(h.eval('state.lastUpdate'),time);assert.match(h.app.innerHTML,/Connection failed \(simulated\)/);

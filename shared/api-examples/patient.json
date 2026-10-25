@@ -21,8 +21,9 @@
         "quality": "good"
       },
       "spo2": {
-        "value": 98,
-        "quality": "good"
+        "value": null,
+        "quality": "unavailable",
+        "available": false
       },
       "temp": {
         "value": 36.4,

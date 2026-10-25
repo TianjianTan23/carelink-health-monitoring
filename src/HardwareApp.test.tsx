@@ -10,13 +10,13 @@ async function advance(ms:number){await act(async()=>{await vi.advanceTimersByTi
 async function click(name:string){await act(async()=>{fireEvent.click(screen.queryByRole('button',{name})??screen.getByRole('tab',{name}));});}
 async function start(){const service=new HardwareBridgeService(hardwareConfig);const latest=vi.spyOn(service,'latest').mockResolvedValue(hardwareFixture());render(<HardwareApp service={service}/>);await click('Open device workspace');return {latest};}
 it('keeps the complete Pro dashboard, searchable device card, detail tabs, trends, history and AI unavailable area',async()=>{
- await start();expect(screen.getByRole('heading',{name:/Patients/})).toBeInTheDocument();expect(screen.getByLabelText('Search patients')).toBeInTheDocument();expect(screen.queryByText('Heart rate')).not.toBeInTheDocument();expect(screen.queryByText('SpO₂')).not.toBeInTheDocument();
+ await start();expect(screen.getByRole('heading',{name:/Patients/})).toBeInTheDocument();expect(screen.getByLabelText('Search patients')).toBeInTheDocument();expect(screen.getAllByText('Heart rate').length).toBeGreaterThan(0);expect(screen.queryByText('SpO₂')).not.toBeInTheDocument();
  await click('Open esp32-01');expect(screen.getByRole('tab',{name:'Overview'})).toHaveAttribute('aria-selected','true');expect(screen.getByText('25.87')).toBeInTheDocument();expect(screen.getByText('0.92')).toBeInTheDocument();expect(screen.getAllByText(/Fall classification not yet validated/).length).toBeGreaterThan(0);
  expect(screen.getByRole('heading',{name:'Last 10 minutes: trends'})).toBeInTheDocument();await click('10-minute readings');expect(screen.getAllByRole('row')).toHaveLength(2);expect(screen.getByRole('columnheader',{name:'Bridge received'})).toBeInTheDocument();
- await click('Raw data & AI');expect(screen.getByRole('heading',{name:'AI predictions'})).toBeInTheDocument();expect(screen.getByText(/AI not connected/)).toBeInTheDocument();expect(screen.getByText('Not connected')).toBeInTheDocument();expect(screen.queryByText('Heart rate')).not.toBeInTheDocument();expect(screen.queryByText('Possible fall')).not.toBeInTheDocument();
+ await click('Raw data & AI');expect(screen.getByRole('heading',{name:'AI predictions'})).toBeInTheDocument();expect(screen.getByText(/AI not connected/)).toBeInTheDocument();expect(screen.getByText('Not connected')).toBeInTheDocument();expect(screen.queryByText('SpO₂')).not.toBeInTheDocument();expect(screen.queryByText('Possible fall')).not.toBeInTheDocument();
 });
 it('Basic remains simplified without losing bilingual/theme controls or inventing health conclusions',async()=>{
- await start();await click('Try Basic mode');expect(screen.queryByRole('tab',{name:'Raw data & AI'})).not.toBeInTheDocument();expect(screen.getByText('25.87')).toBeInTheDocument();expect(screen.queryByText('Heart rate')).not.toBeInTheDocument();await click('Switch to dark');expect(document.documentElement.dataset.theme).toBe('dark');await click('中文');expect(screen.getByText('跌倒分类尚未验证')).toBeInTheDocument();
+ await start();await click('Try Basic mode');expect(screen.queryByRole('tab',{name:'Raw data & AI'})).not.toBeInTheDocument();expect(screen.getByText('25.87')).toBeInTheDocument();expect(screen.getAllByText('Heart rate').length).toBeGreaterThan(0);await click('Switch to dark');expect(document.documentElement.dataset.theme).toBe('dark');await click('中文');expect(screen.getByText('跌倒分类尚未验证')).toBeInTheDocument();
 });
 it('retains stale state across successful polls and recovers only on a new bridge receive time',async()=>{
  const {latest}=await start();await click('Try Basic mode');await advance(6000);expect(screen.queryByText('25.87')).not.toBeInTheDocument();expect(screen.getByText('Device offline or data stale')).toBeInTheDocument();latest.mockResolvedValue(hardwareFixture());await advance(1000);expect(screen.getByText('25.87')).toBeInTheDocument();
@@ -30,5 +30,5 @@ it('shows raw motion event timeline and records local review without declaring a
 });
 
 it('uses an honest hardware display concept without retired vitals or a validated-fall claim',async()=>{
- await start();await click('Device display');expect(screen.getByText(/Previews surface temperature and acceleration only/)).toBeInTheDocument();expect(screen.queryByText(/HR|SpO₂|Fall events have priority/)).not.toBeInTheDocument();
+ await start();await click('Device display');expect(screen.getByText(/Previews heart rate, surface temperature and acceleration/)).toBeInTheDocument();expect(screen.queryByText(/SpO₂|Fall events have priority/)).not.toBeInTheDocument();
 });

@@ -5,10 +5,6 @@
     "mildHigh": 100,
     "severeHigh": 130
   },
-  "spo2": {
-    "severeLow": 90,
-    "mildLow": 95
-  },
   "temp": {
     "severeLow": 34,
     "mildLow": 35.5,

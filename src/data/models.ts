@@ -4,7 +4,7 @@ const timestamp=z.string().datetime({offset:true});
 export const QualitySchema=z.enum(['good','poor','unavailable','unknown']);
 export const LevelSchema=z.enum(['red','yellow','green','unknown']);
 const source=z.enum(['mock','device','backend']);
-export const MetricSchema=z.object({value:z.number().finite().nullable(),quality:QualitySchema,available:z.boolean().optional()});
+export const MetricSchema=z.object({value:z.number().finite().nullable(),quality:QualitySchema,available:z.boolean().optional(),measuredAt:timestamp.nullable().optional(),sensor:z.string().optional(),connected:z.boolean().nullable().optional(),state:z.enum(['waiting','unvalidated','valid','poor','disconnected','unavailable','stale']).optional(),calculationValidated:z.boolean().optional()});
 export const PredictionSchema=z.object({
   state:z.enum(['not_connected','pending','available','failed','unavailable']),
   id:z.string().nullable().optional(),patientId:z.string().nullable().optional(),
@@ -17,10 +17,10 @@ const vector=z.object({x:z.number().finite(),y:z.number().finite(),z:z.number().
 export const AssessmentSchema=z.object({level:LevelSchema,reasons:z.array(z.string()),assessedAt:timestamp,ruleSetId:z.string().nullable(),origin:z.literal('backend')});
 export const SensorReadingSchema=z.object({
   patientId:z.string().min(1),deviceId:z.string().min(1),measuredAt:timestamp,receivedAt:timestamp,
-  connected:z.boolean(),metrics:z.object({hr:MetricSchema,spo2:MetricSchema,temp:MetricSchema,ambient:MetricSchema.optional(),motion:MetricSchema.optional()}),
+  connected:z.boolean(),metrics:z.object({hr:MetricSchema,spo2:MetricSchema.optional(),temp:MetricSchema,ambient:MetricSchema.optional(),motion:MetricSchema.optional()}),
   fall:z.object({active:z.boolean(),quality:QualitySchema,eventAt:timestamp.nullable().optional()}),
   raw:z.object({accel_m_s2:vector.nullable(),gyro_deg_s:vector.nullable(),ir:z.number().nullable(),red:z.number().nullable(),object_temperature_c:z.number().nullable(),ambient_temperature_c:z.number().nullable()}).nullable(),
-  hardware:z.object({motionConnected:z.boolean(),temperatureConnected:z.boolean(),rawAlarm:z.boolean().nullable(),accelG:vector.nullable(),peakG:z.number().nullable(),uptimeMs:z.number(),timestampBasis:z.literal('bridge_received')}).optional(),
+  hardware:z.object({motionConnected:z.boolean(),temperatureConnected:z.boolean(),rawAlarm:z.boolean().nullable(),accelG:vector.nullable(),peakG:z.number().nullable(),uptimeMs:z.number(),rawSignalAdc:z.number().nullable().optional(),timestampBasis:z.literal('bridge_received')}).optional(),
   ai:PredictionSchema,source,scenario:z.string().optional(),assessment:AssessmentSchema.nullable().optional(),
 });
 export const PatientSchema=z.object({
@@ -48,10 +48,10 @@ export type Alert=z.infer<typeof AlertSchema>;
 export type Session=z.infer<typeof SessionSchema>;
 export type Quality=z.infer<typeof QualitySchema>;
 export type Level=z.infer<typeof LevelSchema>;
-export type MetricKey='hr'|'spo2'|'temp'|'ambient'|'motion';
+export type MetricKey='hr'|'temp'|'ambient'|'motion';
 export type AppMode='pro'|'basic';
 export type Language='zh'|'en';
 export type ServiceMode='mock'|'live'|'hardware';
 export type Resource<T>={state:'idle'|'loading'|'ready'|'empty'|'error';data:T;error:string|null;updatedAt:number|null};
 export const initialResource=<T>(data:T):Resource<T>=>({state:'idle',data,error:null,updatedAt:null});
-export type DemoRules={hr:{severeLow:number;mildLow:number;mildHigh:number;severeHigh:number};spo2:{severeLow:number;mildLow:number};temp:{severeLow:number;mildLow:number;mildHigh:number;severeHigh:number};staleAfterSeconds:number};
+export type DemoRules={hr:{severeLow:number;mildLow:number;mildHigh:number;severeHigh:number};spo2?:{severeLow:number;mildLow:number};temp:{severeLow:number;mildLow:number;mildHigh:number;severeHigh:number};staleAfterSeconds:number};

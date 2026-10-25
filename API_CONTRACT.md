@@ -32,7 +32,7 @@
 
 - `patientId, deviceId, measuredAt, receivedAt, connected, metrics, fall, raw, ai, source`。
 - `measuredAt` 是采集时间；`receivedAt` 是后端接收时间，不能互相替代。时间均为带时区 ISO 8601；建议后端 UTC 存储。两端以设备本地时区显示。
-- `metrics.hr / spo2 / temp` 各有 `value: number | null`、`quality: good | poor | unavailable | unknown`，可选 `available: boolean`。显式 false、非 good、null、离线或过期均不作为有效当前数值；不会填 0 或沿用上一有效值。温度为表面/物体温度，尚未校准为核心体温。
+- `metrics.hr / temp` 为产品指标；`metrics.spo2` 仅作为可选的旧版兼容字段，不进入卡片、历史、趋势或本地分级。指标均有 `value: number | null`、`quality: good | poor | unavailable | unknown`，可选 `available: boolean`。显式 false、非 good、null、离线或过期均不作为有效当前数值；不会填 0 或沿用上一有效值。温度为表面/物体温度，尚未校准为核心体温。
 - `fall.active` 表示仍需关注的设备事件，不能因断线或“已确认”自动变为 false；`fall.quality` 为监测质量，`eventAt` 可空。
 - `raw` 可为 null（未提供或无权限）；内含 `accel_m_s2`、`gyro_deg_s`、`ir`、`red`、`object_temperature_c`、`ambient_temperature_c`，缺失量可空。两个向量可为 null。
 - `source: mock | device | backend` 是来源，不由当前 UI 模式猜测。API 也可返回明确标记的 mock 联调记录；界面不能把它标为真实硬件测量。
@@ -71,3 +71,10 @@
 7. 告警类型/严重度枚举、幂等确认、冲突返回、历史保留及服务端审计。
 
 在这些信息确定前，默认继续 mock。无需更改 React 或 SwiftUI 页面来切换服务；若 JSON 有差异，改适配与契约测试。
+
+
+## 2026-10-26 兼容更新
+
+旧 metrics.spo2 响应仍可解码，缺省也可解码；本轮没有要求组员删库或破坏旧接口。产品 Mock 兼容字段统一为 null/unavailable，不生成血氧值，模拟严重异常改用心率场景。新增可选 Metric 元数据 measuredAt/sensor/connected/state/calculationValidated，用于独立心率时间、连接与有效性。它们是可选扩展，不是假设后端已经实现。
+
+LiveApiService 的认证患者资源契约保持原端点；HardwareBridgeService 的 latest 设备信封仍是另一份契约，不能互换。KY-039 平台端默认需本地配置确认和实际信封元数据同时通过。完整字段与启用条件见 KY039_UI_UPDATE.md。

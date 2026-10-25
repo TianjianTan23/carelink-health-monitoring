@@ -37,7 +37,7 @@ struct ScenariosView: View {
             }
             Section {
                 Toggle(store.t("每 5 秒自动更新模拟数据", "Refresh mock data every 5 seconds"), isOn: $store.autoRefresh)
-                Text(store.t("关闭后可测试数据过期。KY-005 是红外发射模块；备用模式不产生心率/血氧数值。", "Turn off updates to test stale data. KY-005 is an IR transmitter; fallback mode produces no HR/SpO₂ values."))
+                Text(store.t("关闭后可测试数据过期。KY-039 的原始模拟信号不是 BPM，需确认计算结果。", "Turn off updates to test stale data. Raw KY-039 analog signals are not BPM; computed samples must be confirmed."))
                     .font(.caption).foregroundStyle(.secondary)
                 Button(store.t("重置所有演示数据", "Reset all mock data")) { Task { await store.reset() } }
             }
@@ -71,7 +71,7 @@ struct AccountView: View {
             }
             Section(store.t("设备与后端", "Devices & backend")) {
                 Text(store.dataMode == .mock ? store.t("数据来源：本地共享 JSON 演示数据。未连接传感器、真实登录或 AI。", "Source: local shared JSON fixtures. Sensors, real authentication and AI are not connected.") : store.t("数据来源：已配置 API。来源、时间、预测及可用性以实际返回值为准。", "Source: configured API. Provenance, timestamps, predictions and availability follow actual responses."))
-                Text(store.t("MPU6050：运动/跌倒；MLX90614：表面温度；MAX30102：心率/血氧。LCD 1602A 由 ESP32 显示，不是手机端的替代程序。", "MPU6050: motion/fall; MLX90614: surface temperature; MAX30102: HR/SpO₂. The ESP32's LCD 1602A is a separate device display."))
+                Text(store.t("MPU6050：运动，跌倒分类待验证；MLX90614：表面温度；KY-039：心率接入待验证。LCD 1602A 由 ESP32 显示，不是手机端的替代程序。", "MPU6050: motion, fall classification unvalidated; MLX90614: surface temperature; KY-039: heart rate pending validation. The ESP32's LCD 1602A is a separate device display."))
                     .font(.footnote).foregroundStyle(.secondary)
             }
             Section { Button(store.t("退出演示", "Exit demo"), role: .destructive) { store.signOut() } }

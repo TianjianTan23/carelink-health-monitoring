@@ -8,15 +8,15 @@ function setup(){let now=Date.now();const bridge=new HardwareBridgeService(hardw
 describe('hardware adapter within the full DataService contract',()=>{
  it('maps temperatures and g without invented vitals, a fall classifier or a patient identity',async()=>{
   const {data}=setup();await data.getSession();const [p]=await data.refresh();const r=SensorReadingSchema.parse(p.reading);
-  expect(p.profileKind).toBe('device');expect(data.metricKeys).toEqual(['temp','ambient','motion']);expect(r.metrics.temp.value).toBe(25.87);expect(r.metrics.ambient?.value).toBe(25.89);expect(r.metrics.motion?.value).toBe(0.92);
-  expect(r.metrics.hr).toMatchObject({value:null,quality:'unavailable'});expect(r.metrics.spo2.value).toBeNull();expect(r.fall).toEqual({active:false,quality:'unavailable'});
+  expect(p.profileKind).toBe('device');expect(data.metricKeys).toEqual(['hr','temp','ambient','motion']);expect(r.metrics.temp.value).toBe(25.87);expect(r.metrics.ambient?.value).toBe(25.89);expect(r.metrics.motion?.value).toBe(0.92);
+  expect(r.metrics.hr).toMatchObject({value:null,quality:'unavailable'});expect(r.metrics.spo2).toBeUndefined();expect(r.fall).toEqual({active:false,quality:'unavailable'});
   expect(r.hardware?.accelG).toEqual({x:-0.56,y:-0.24,z:0.68});expect(r.raw?.accel_m_s2).toBeNull();expect(r.hardware?.timestampBasis).toBe('bridge_received');
   expect(status(r,'hardware',data.rules,'en').level).toBe('unknown');expect(status(r,'hardware',data.rules,'en').reasons.join()).toContain('not yet validated');
-  const frames=displayFrames(r,'hardware',data.rules).flat().join();expect(frames).not.toMatch(/HR|O2|FALL DETECTED/);
+  const frames=displayFrames(r,'hardware',data.rules).flat().join();expect(frames).not.toMatch(/O2|FALL DETECTED/);
  });
  it('ignores legacy HR even if the bridge reports it as valid and hides channels with bad validity flags',async()=>{
   const {data,latest}=setup();const fixture=hardwareFixture();fixture.data.heart_rate_ok=true;fixture.data.heart_rate_bpm=72;fixture.data.mpu6050_ok=false;fixture.data.mlx90614_ok=false;latest.mockResolvedValue(fixture);
-  await data.getSession();const [p]=await data.refresh();for(const key of ['temp','ambient','motion','hr','spo2'] as const)expect(value(p.reading,key,data.rules,'en').text).toBe('—');
+  await data.getSession();const [p]=await data.refresh();for(const key of ['temp','ambient','motion','hr'] as const)expect(value(p.reading,key,data.rules,'en').text).toBe('—');
  });
  it('retains only unique actual session samples, ages unchanged bridge responses, and never invents a trend',async()=>{
   const {data,advance,latest}=setup();await data.getSession();const [p]=await data.refresh();await data.refresh();expect(await data.getReadings(p.id)).toHaveLength(1);

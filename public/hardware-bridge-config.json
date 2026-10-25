@@ -4,5 +4,6 @@
   "pollIntervalMs": 1000,
   "staleAfterMs": 5000,
   "requestTimeoutMs": 4000,
-  "deviceId": "esp32-01"
+  "deviceId": "esp32-01",
+  "heartRateContractConfirmed": false
 }

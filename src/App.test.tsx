@@ -11,7 +11,7 @@ async function startBasic(){const user=userEvent.setup();const service=new MockD
 it('Basic shows linked patient only, changes language/theme, and shows unavailable/error states',async()=>{
  const {user}=await startBasic();expect(screen.queryByText('Lin Zhiqiu')).not.toBeInTheDocument();expect(screen.queryByText('Raw sensor data')).not.toBeInTheDocument();
  await user.click(screen.getByRole('button',{name:'Switch to dark'}));expect(document.documentElement.dataset.theme).toBe('dark');
- await user.click(screen.getByRole('button',{name:'Demo scenarios'}));const dialog=screen.getByRole('dialog');await user.click(within(dialog).getByRole('button',{name:'KY-005 / unavailable'}));await user.click(within(dialog).getByRole('button',{name:'Close'}));await screen.findAllByText('Unavailable');expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(2);
+ await user.click(screen.getByRole('button',{name:'Demo scenarios'}));const dialog=screen.getByRole('dialog');await user.click(within(dialog).getByRole('button',{name:'Heart rate unavailable'}));await user.click(within(dialog).getByRole('button',{name:'Close'}));await screen.findAllByText('Waiting for a valid heart-rate signal');expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(1);
  await user.click(screen.getByRole('button',{name:'Demo scenarios'}));await user.click(screen.getByLabelText('Simulate network failure'));await user.click(screen.getByRole('button',{name:'Close'}));await screen.findByRole('alert');expect(screen.getByText('Unable to load')).toBeInTheDocument();
  await user.click(screen.getByRole('button',{name:'中文'}));expect(screen.getByText('加载失败')).toBeInTheDocument();
 });

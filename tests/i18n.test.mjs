@@ -10,7 +10,7 @@ test('dynamic labels preserve counts, ages, IDs and measured units',()=>{
   assert.equal(translate('查看林知秋详情，优先查看','en'),'View Lin Zhiqiu: Review urgently');
   assert.equal(translate('心率最近十分钟模拟趋势，最低 72.0，最高 74.0 bpm','en'),'Mock Heart rate trend over 10 minutes; minimum 72.0, maximum 74.0 bpm');
   assert.equal(translate('第 1 / 2 页 · 每 3 秒','en'),'Page 1 / 2 · Every 3 seconds');
-  assert.equal(translate('MAX30102 · 98 % · 36.6 °C · p004','en'),'MAX30102 · 98 % · 36.6 °C · p004');
+  assert.equal(translate('KY-039 · 76 BPM · 36.6 °C · p004','en'),'KY-039 · 76 BPM · 36.6 °C · p004');
 });
 
 test('every mock profile and sensor-quality scene has English presentation text',async()=>{
@@ -19,7 +19,7 @@ test('every mock profile and sensor-quality scene has English presentation text'
   const now=Date.now();
   for(const scene of Object.keys(SCENARIOS)){
     const reading=makeReading('p001',scene,now);
-    const messages=[SCENARIOS[scene],...triage(reading,DEFAULT_RULES,now).reasons,...['hr','spo2','temp'].map(k=>displayMetric(reading,k,DEFAULT_RULES,now).note)];
+    const messages=[SCENARIOS[scene],...triage(reading,DEFAULT_RULES,now).reasons,...['hr','temp'].map(k=>displayMetric(reading,k,DEFAULT_RULES,now).note)];
     for(const message of messages)assert.doesNotMatch(translate(message,'en'),/[\u4e00-\u9fff]/,`${scene}: ${message}`);
   }
 });

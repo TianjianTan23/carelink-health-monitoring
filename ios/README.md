@@ -1,3 +1,9 @@
+# 当前更新：2026-10-26 KY-039 UI
+
+本轮保留独立 SwiftUI 工程和原有 Pro/Basic/导航交互，移除所有血氧卡片、趋势、历史、规则文案与指标枚举。心率卡片显示 BPM、质量/计算状态、连接信息和独立采样时间；normalized Metric 的 sensor=KY-039 但 calculationValidated 不是 true 时不可显示数值。缺失字段时不假定已接线或已计算成功。
+
+此原生工程仍使用 CareService 的 mock/患者 API 配置，未新增对 FastAPI latest 设备桥接的调用；两种契约保持独立。硬件采集与算法仍待组员提供。历史血氧 wire 字段只作可选兼容，不在 UI 枚举中；Mock 值为 null。详见根目录 KY039_UI_UPDATE.md。以下旧更新是历史记录，以本节为当前范围。
+
 # CareLink · 原生 iPhone Demo
 
 这是独立 SwiftUI App，不是网页套壳。目标设备为 iPhone，最低 iOS 17；不包含 Android、iPad 或 Mac Catalyst target。Web 继续作为电脑端运行，两端都有 Pro / Basic，并支持中文与 English。

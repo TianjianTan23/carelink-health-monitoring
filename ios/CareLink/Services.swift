@@ -108,16 +108,16 @@ final class MockCareService: CareService {
         let good: (Double) -> Metric = { Metric(value: $0, quality: .good) }
         var r = Reading(patientId: id, deviceId: String(format: "esp32-%02d", index), measuredAt: now,
             receivedAt: now.addingTimeInterval(0.1), connected: true,
-            metrics: Metrics(hr: good(Double(72 + index + offset)), spo2: good(98), temp: good(((36.4 + Double(index) * 0.04) * 10).rounded() / 10)),
+            metrics: Metrics(hr: good(Double(72 + index + offset)), spo2: Metric(value: nil, quality: .unavailable, available: false), temp: good(((36.4 + Double(index) * 0.04) * 10).rounded() / 10)),
             fall: FallEvent(active: false, quality: .good, eventAt: nil),
-            raw: RawData(accel_m_s2: Vector3(x: 0.12, y: 0.08, z: 9.79), gyro_deg_s: Vector3(x: 0.1, y: 0.2, z: 0.1), ir: 82000, red: 69000, object_temperature_c: 36.6, ambient_temperature_c: 24.1),
+            raw: RawData(accel_m_s2: Vector3(x: 0.12, y: 0.08, z: 9.79), gyro_deg_s: Vector3(x: 0.1, y: 0.2, z: 0.1), ir: nil, red: nil, object_temperature_c: 36.6, ambient_temperature_c: 24.1),
             ai: Prediction(state: "not_connected", model: nil, result: nil, confidence: nil), source: "mock", scenario: scenario)
         switch scenario {
         case "mild": r.metrics.hr = good(Double(108 + offset))
         case "warm": r.metrics.temp = good(38.1)
-        case "severe": r.metrics.spo2 = good(87)
+        case "severe": r.metrics.hr = good(Double(140 + offset))
         case "fall": r.fall = FallEvent(active: true, quality: .good, eventAt: now.addingTimeInterval(-45)); r.raw?.accel_m_s2 = Vector3(x: 3.4, y: 9.6, z: 1.2)
-        case "poor": r.metrics.hr = Metric(value: 148, quality: .poor); r.metrics.spo2 = Metric(value: 82, quality: .poor)
+        case "poor": r.metrics.hr = Metric(value: 148, quality: .poor)
         case "unavailable": r.metrics.hr = Metric(value: nil, quality: .unavailable); r.metrics.spo2 = Metric(value: nil, quality: .unavailable); r.raw?.ir = nil; r.raw?.red = nil
         case "offline": r.connected = false
         case "stale": r.measuredAt = now.addingTimeInterval(-180)

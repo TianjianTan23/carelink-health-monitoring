@@ -31,6 +31,7 @@ struct CoreChecks {
         for vector in vectors {
             check(Monitoring.triage(vector.reading, rules: rules, now: vector.now).level == vector.expected, "JS/Swift status parity: \(vector.name)")
         }
+        check(MetricKey.allCases.map { $0.rawValue } == ["hr", "temp"], "Retired channel cannot appear in native UI")
         let anchor = patients[0].reading!.measuredAt
         let service = MockCareService(profiles: patients, rules: rules, sessions: sessions, now: anchor)
         _ = try await service.getSession(mode:.pro)
@@ -38,7 +39,7 @@ struct CoreChecks {
         for (native, fixture) in zip(loaded, patients) {
             check(native.id == fixture.id && native.name == fixture.name, "Shared profile identity")
             check(native.reading?.metrics.hr.value == fixture.reading?.metrics.hr.value, "Shared HR fixture")
-            check(native.reading?.metrics.spo2.value == fixture.reading?.metrics.spo2.value, "Shared SpO2 fixture")
+            check(native.reading?.metrics.spo2?.value == fixture.reading?.metrics.spo2?.value, "Retired compatibility field remains null")
             check(native.reading?.metrics.temp.value == fixture.reading?.metrics.temp.value, "Shared temperature fixture")
             check(native.reading?.fall.active == fixture.reading?.fall.active, "Shared fall fixture")
         }
@@ -47,8 +48,8 @@ struct CoreChecks {
         check(history.allSatisfy { $0.measuredAt >= anchor.addingTimeInterval(-600) && $0.measuredAt <= anchor }, "Bounded history window")
         service.setScenario(patientID: "p004", scenario: .unavailable)
         let unavailable = try await service.getPatients().first { $0.id == "p004" }!.reading
-        check(Monitoring.display(unavailable, key: .hr, rules: rules) == "—", "KY-005 never supplies HR")
-        check(Monitoring.display(unavailable, key: .spo2, rules: rules) == "—", "KY-005 never supplies SpO2")
+        check(Monitoring.display(unavailable, key: .hr, rules: rules) == "—", "Unavailable heart rate is not invented")
+        check(unavailable?.metrics.spo2?.value == nil, "No mock oxygen measurement")
         check(Monitoring.triage(unavailable, rules: rules).level == .unknown, "Missing data is not stable")
         check(unavailable?.ai.result == nil && unavailable?.ai.confidence == nil, "No fake AI result")
         service.setScenario(patientID: "p004", scenario: .stale)
@@ -81,7 +82,7 @@ struct CoreChecks {
         check(ledger.records[0].resolvedAt == nil && Monitoring.triage(one.reading, rules: rules, now: incidentTime).level == .red, "Acknowledgement never clears fall")
         one.reading!.fall.active = false
         one.reading!.metrics.hr = Metric(value: 76, quality: .good)
-        one.reading!.metrics.spo2 = Metric(value: 98, quality: .good)
+        one.reading!.metrics.spo2 = Metric(value: nil, quality: .unavailable, available: false)
         one.reading!.metrics.temp = Metric(value: 36.6, quality: .good)
         ledger.reconcile([one], rules: rules, now: incidentTime.addingTimeInterval(10))
         check(ledger.records.count == 1 && ledger.records[0].resolvedAt != nil, "Resolved episode retained in history")
@@ -171,6 +172,29 @@ struct CoreChecks {
         check(Monitoring.liveReport(liveReading,rules:rules,now:anchor).level == .yellow, "Native backend assessment is authoritative")
         liveReading.metrics.hr.available = false
         check(Monitoring.display(liveReading,key:.hr,rules:rules,now:anchor) == "—", "Native explicit sensor availability respected")
+        var heartReading = loaded[3].reading!
+        heartReading.source = "device"; heartReading.measuredAt = anchor
+        heartReading.metrics.hr = Metric(value: 76, quality: .good, sensor: "KY-039", connected: true)
+        check(Monitoring.display(heartReading,key:.hr,rules:rules,now:anchor) == "—", "Wiring and raw BPM are not a validated KY-039 algorithm")
+        check(Monitoring.heartState(heartReading,rules:rules,now:anchor) == "unvalidated", "Unvalidated heart-rate state")
+        heartReading.metrics.hr.calculationValidated = true
+        heartReading.metrics.hr.state = "valid"; heartReading.metrics.hr.measuredAt = anchor
+        check(Monitoring.display(heartReading,key:.hr,rules:rules,now:anchor) == "76", "Valid normalized computed BPM")
+        heartReading.metrics.hr.measuredAt = anchor.addingTimeInterval(-60)
+        check(Monitoring.display(heartReading,key:.hr,rules:rules,now:anchor) == "—", "Per-channel heart timestamp goes stale independently")
+        check(!Monitoring.sampleUsable(heartReading,key:.hr,rules:rules), "Stale heart-rate samples cannot enter native trends")
+        heartReading.metrics.hr.measuredAt = anchor; heartReading.metrics.hr.connected = false
+        check(Monitoring.display(heartReading,key:.hr,rules:rules,now:anchor) == "—", "Disconnected heart sensor hides BPM")
+        heartReading.metrics.hr.connected = true; heartReading.metrics.hr.value = 0
+        check(Monitoring.display(heartReading,key:.hr,rules:rules,now:anchor) == "—", "Zero BPM is not a valid pulse")
+        var retired = loaded[3].reading!
+        retired.measuredAt = anchor; retired.metrics.spo2 = Metric(value: 12,quality:.good)
+        check(Monitoring.triage(retired,rules:rules,now:anchor).level == .green, "Legacy oxygen values do not affect product grading")
+        let withoutRetired = String(decoding:try WireJSON.encoder().encode(retired),as:UTF8.self)
+        var compatible = try WireJSON.decoder().decode(Reading.self,from:Data(withoutRetired.utf8))
+        compatible.metrics.spo2 = nil
+        let compatibilityDecoded = try WireJSON.decoder().decode(Reading.self,from:WireJSON.encoder().encode(compatible))
+        check(compatibilityDecoded.metrics.spo2 == nil, "Optional retired wire field decodes")
         let basicAPI = try LiveApiService(configuration:configuration,rules:rules, transport: { request in
             return (try WireJSON.encoder().encode(sessions.basic),HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)
         })
