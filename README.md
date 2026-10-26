@@ -14,10 +14,12 @@ SpO2 is not displayed or used for classification in the new React/FastAPI flow.
 
 These are coursework-only local accounts. The selected role comes from the account on the server; it cannot be chosen in the browser.
 
-| Role | ID | Password | Access |
-| --- | --- | --- | --- |
-| Patient | `ttj` | `041003` | Only patient `ttj`; cannot acknowledge alerts |
-| Nurse | `wyn` | `050403` | Assigned patients; may acknowledge alerts |
+| Role | ID | Access |
+| --- | --- | --- |
+| Patient | Provided separately | Own patient record only; cannot acknowledge alerts |
+| Nurse | Provided separately | Assigned patients; may acknowledge alerts |
+
+The login page does not display or prefill credentials, and the password input cannot be switched to plain text. The FastAPI service stores only salted PBKDF2-SHA256 password hashes; override them with `CARELINK_PATIENT_PASSWORD_HASH` and `CARELINK_NURSE_PASSWORD_HASH` when accounts change.
 
 Both roles can view readings, history, charts, classifications, confidence, abnormal parameters, alert history, and settings. The patient page is scoped to the signed-in patient's own data.
 
@@ -66,6 +68,8 @@ The backend accepts the existing nested or top-level forms for:
 - `fall_detected`, `mpu6050.fall_detected`, or `alarm`
 
 Each accepted snapshot is saved in the SQLite `readings` table. The dashboard retrieves the current reading, full 24-hour history, and the heart-rate and temperature chart series from this table.
+
+The corresponding Arduino sketch is in `firmware/elder_sensors`. Its buzzer follows only the backend model result: `warning` and `critical` sound the buzzer; every other state turns it off. Copy `secrets.example.h` to the ignored `secrets.h` and enter the Mac's current local address before compiling.
 
 ## Classification and attribution
 
@@ -125,4 +129,4 @@ The automated checks cover both account roles, route visibility, chart/history r
 
 ## Deployment note
 
-The two plaintext accounts are suitable only for this local coursework demonstration. Before any real deployment, store password hashes, use HTTPS, add a persistent session/identity provider, rotate secrets, and perform a clinical and privacy review. This project is not a medical device.
+The two local accounts are suitable only for this coursework demonstration. Before any real deployment, use HTTPS, add a persistent session/identity provider, rotate credentials and the session secret, and perform a clinical and privacy review. This project is not a medical device.

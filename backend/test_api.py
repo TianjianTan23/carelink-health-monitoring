@@ -54,6 +54,8 @@ class CareLinkApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         payload = response.json()
         self.assertIn(payload["label"], {"normal", "warning", "critical"})
+        self.assertEqual(payload["label"], "critical")
+        self.assertTrue(payload["actions"]["buzzer"])
         self.assertIsInstance(payload["confidence"], float)
         self.assertEqual({item["parameter"] for item in payload["abnormal_params"]}, {"heart_rate_bpm", "temperature_c", "fall_detected"})
 
@@ -72,12 +74,25 @@ class CareLinkApiTests(unittest.TestCase):
         self.assertIsNone(first["label"])
         self.assertEqual(first["abnormal_params"][0]["kind"], "invalid_reading")
         self.assertIsNone(second["confidence"])
+        self.assertFalse(first["actions"]["buzzer"])
         with connect() as connection:
             row = connection.execute(
                 "SELECT COUNT(*) AS total, MAX(occurrence_count) AS occurrences FROM alerts WHERE alert_key='invalid_reading:temperature_c' AND status IN ('new','acknowledged')"
             ).fetchone()
         self.assertEqual(row["total"], 1)
         self.assertGreaterEqual(row["occurrences"], 2)
+
+    def test_normal_classification_keeps_buzzer_off(self) -> None:
+        response = self.client.post("/sensor-data", json={
+            "device_id": "esp32-test",
+            "heart_rate_bpm": 76,
+            "object_temp_c": 36.7,
+            "fall_detected": False,
+        })
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["label"], "normal")
+        self.assertFalse(payload["actions"]["buzzer"])
 
     def test_patient_cannot_acknowledge_but_nurse_can(self) -> None:
         self.client.post("/sensor-data", json={"device_id": "esp32-test", "heart_rate_bpm": 145, "object_temp_c": 40, "fall_detected": True})

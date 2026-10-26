@@ -202,3 +202,32 @@ main#main{padding:var(--space-16) var(--space-40) var(--space-40);max-width:1580
 .settings-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}.settings-security{grid-column:1/-1;display:flex;gap:16px;align-items:flex-start}.settings-security>svg{color:var(--brand);flex:none}.settings-security h2{margin-bottom:4px}.settings-actions{display:flex;gap:10px;flex-wrap:wrap}
 @media(max-width:1050px){.chart-grid{grid-template-columns:1fr}.metric-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:760px){.metric-grid{grid-template-columns:1fr}.chart-grid,.settings-grid{grid-template-columns:1fr}.settings-security{grid-column:auto}.reading-meta dl,.settings-list{grid-template-columns:1fr}.monitoring-heading{display:block}.patient-switcher,.subject-chip{margin-top:16px;align-items:flex-start}.demo-accounts{grid-template-columns:1fr}.classification-record-head{display:block}.confidence{align-items:flex-start;margin-top:14px}.attribution li{grid-template-columns:1fr}.history-chart{min-height:210px}.top-actions .button.quiet:first-of-type{display:none}}
+
+/* High-visibility clinical alerts for the nurse workspace. */
+.status-panel.prominent-alert{padding:30px 32px;border-width:2px;box-shadow:0 16px 38px color-mix(in srgb,var(--red) 14%,transparent)}
+.status-panel.prominent-alert.yellow{box-shadow:0 16px 38px color-mix(in srgb,var(--yellow) 18%,transparent)}
+.prominent-alert-heading{display:flex;align-items:center;gap:18px;padding-bottom:20px;margin-bottom:18px;border-bottom:1px solid currentColor}
+.prominent-alert-icon{display:grid;place-items:center;flex:none;width:58px;height:58px;border-radius:18px;background:color-mix(in srgb,currentColor 12%,var(--surface))}
+.prominent-alert-heading span:not(.prominent-alert-icon){display:block;font-size:12px;font-weight:800;letter-spacing:1.4px}
+.prominent-alert-heading h2{font-size:clamp(24px,2.5vw,34px);line-height:1.18;margin:3px 0 7px;letter-spacing:-.7px}
+.prominent-alert-heading strong{display:block;font-size:15px;line-height:1.45}
+.prominent-alert .badge{font-size:13px;padding:7px 11px}
+.prominent-alert .status-reasons{display:grid;gap:10px;margin:14px 0}
+.prominent-alert .status-reasons p{font-size:18px;line-height:1.55;font-weight:650;margin:0}
+.prominent-alert>small{display:block;font-size:12px;line-height:1.55;margin-top:6px}
+
+/* Make model and alert results readable at a glance. */
+.classification-record{padding:30px}
+.classification-pill{font-size:13px;padding:8px 13px}
+.classification-record-head h2{font-size:24px}
+.confidence strong{font-size:34px}
+.confidence span{font-size:12px}
+.attribution h3{font-size:17px}
+.attribution li{font-size:14px;padding:14px 16px}
+.attribution li code{font-size:13px}
+.alert-card h3{font-size:17px;line-height:1.45}
+.alert-card>small,.alert-state{font-size:13px;line-height:1.5}
+.alert-detail h2{font-size:24px;line-height:1.35}
+.login-form-area>.caption{display:flex;align-items:center;gap:7px}
+
+@media(max-width:760px){.status-panel.prominent-alert{padding:22px}.prominent-alert-heading{align-items:flex-start}.prominent-alert-icon{width:48px;height:48px;border-radius:14px}.prominent-alert .status-reasons p{font-size:16px}.classification-record{padding:22px}}

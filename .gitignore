@@ -11,3 +11,4 @@ backend/*.db
 backend/*.db-shm
 backend/*.db-wal
 .env*
+firmware/**/secrets.h

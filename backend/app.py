@@ -31,8 +31,24 @@ STALE_AFTER_SECONDS = 60
 PATIENT_ID = "ttj"
 
 USERS = {
-    "ttj": {"password": "041003", "role": "patient", "mode": "basic", "patient_ids": [PATIENT_ID]},
-    "wyn": {"password": "050403", "role": "clinician", "mode": "pro", "patient_ids": [PATIENT_ID]},
+    "ttj": {
+        "password_hash": os.environ.get(
+            "CARELINK_PATIENT_PASSWORD_HASH",
+            "pbkdf2_sha256$310000$53dc2ceee3084f98f96cd4856c63f51c$31fb088bbd5b591c1b1f7934c8122ac9476d17b5bf2f59cb79926ef0bddfac08",
+        ),
+        "role": "patient",
+        "mode": "basic",
+        "patient_ids": [PATIENT_ID],
+    },
+    "wyn": {
+        "password_hash": os.environ.get(
+            "CARELINK_NURSE_PASSWORD_HASH",
+            "pbkdf2_sha256$310000$3d9a2490e6d6163860f0c2a0b7ba3df4$9dc10d8bd44c3e70a6025b8dd7eb49922ca1d322b17f7963fb5df1462474d348",
+        ),
+        "role": "clinician",
+        "mode": "pro",
+        "patient_ids": [PATIENT_ID],
+    },
 }
 PATIENT = {
     "id": PATIENT_ID,
@@ -59,6 +75,23 @@ class ClassificationRequest(BaseModel):
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _verify_password(password: str, encoded: str) -> bool:
+    """Verify a salted PBKDF2-SHA256 password hash in constant time."""
+    try:
+        algorithm, iterations_raw, salt_hex, expected_hex = encoded.split("$", 3)
+        if algorithm != "pbkdf2_sha256":
+            return False
+        candidate = hashlib.pbkdf2_hmac(
+            "sha256",
+            password.encode("utf-8"),
+            bytes.fromhex(salt_hex),
+            int(iterations_raw),
+        ).hex()
+        return hmac.compare_digest(candidate, expected_hex)
+    except (TypeError, ValueError):
+        return False
 
 
 def _create_session_token(username: str) -> str:
@@ -472,7 +505,7 @@ def health() -> dict[str, Any]:
 def login(request: LoginRequest, response: Response) -> dict[str, Any]:
     username = request.username.strip().lower()
     account = USERS.get(username)
-    if not account or not secrets.compare_digest(str(account["password"]), request.password):
+    if not account or not _verify_password(request.password, str(account["password_hash"])):
         raise HTTPException(status_code=401, detail="Invalid user ID or password")
     token = _create_session_token(username)
     response.set_cookie(
@@ -649,6 +682,9 @@ def receive_sensor_data(payload: dict[str, Any]) -> dict[str, Any]:
         "confidence": prediction["confidence"] if prediction else None,
         "abnormal_params": prediction["abnormal_params"] if prediction else validation_errors,
         "validation_errors": validation_errors,
+        "actions": {
+            "buzzer": bool(prediction and prediction["label"] in {"warning", "critical"}),
+        },
     }
 
 

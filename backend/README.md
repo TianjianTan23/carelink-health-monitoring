@@ -2,12 +2,7 @@
 
 This FastAPI service receives the existing ESP32 JSON at `POST /sensor-data`, stores readings and model outputs in SQLite, and exposes authenticated `/api/*` routes to the React app.
 
-Local coursework accounts:
-
-- Patient: `ttj` / `041003`
-- Nurse: `wyn` / `050403`
-
-These plaintext demonstration credentials are intentionally local-only and must be replaced with hashed passwords and a real identity provider before deployment.
+Local coursework account IDs and passwords are supplied separately and are not shown in the UI or documentation. Passwords are verified against salted PBKDF2-SHA256 hashes. Set `CARELINK_PATIENT_PASSWORD_HASH` and `CARELINK_NURSE_PASSWORD_HASH` to rotate them without editing source code.
 
 Run from the repository root:
 

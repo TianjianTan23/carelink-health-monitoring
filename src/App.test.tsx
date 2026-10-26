@@ -11,7 +11,8 @@ import sessions from '../shared/demo-sessions.json';
 async function loginAs(kind:'Patient'|'Nurse'){
   const user=userEvent.setup();
   render(<App service={new MockDataService()}/>);
-  await user.click(screen.getByRole('button',{name:new RegExp(kind)}));
+  await user.type(screen.getByLabelText('User ID'),kind==='Patient'?'ttj':'wyn');
+  await user.type(screen.getByLabelText('Password'),kind==='Patient'?'041003':'050403');
   await user.click(screen.getByRole('button',{name:'Sign in'}));
   await screen.findByRole('heading',{name:'Readings'});
   return user;
@@ -31,6 +32,7 @@ it('patient credentials open a patient-scoped view with every required section a
 it('nurse credentials open the nurse workspace and permit alert acknowledgement',async()=>{
   const user=await loginAs('Nurse');
   expect(screen.getByText('NURSE WORKSPACE')).toBeInTheDocument();
+  expect(screen.getByRole('alert',{name:/CRITICAL|WARNING/})).toBeInTheDocument();
   await user.click(screen.getByRole('button',{name:'Alert history'}));
   await screen.findByRole('heading',{name:'Alerts'});
   const alertCards=await screen.findAllByRole('button',{name:/p001|Lin Zhiqiu/});
@@ -41,7 +43,7 @@ it('nurse credentials open the nurse workspace and permit alert acknowledgement'
 
 it('patient cannot acknowledge alerts',async()=>{
   const user=userEvent.setup();const service=new MockDataService();await service.getSession('basic');service.setScenario('p004','fall');render(<App service={service}/>);
-  await user.click(screen.getByRole('button',{name:/Patient/}));await user.click(screen.getByRole('button',{name:'Sign in'}));await screen.findByRole('heading',{name:'Readings'});
+  await user.type(screen.getByLabelText('User ID'),'ttj');await user.type(screen.getByLabelText('Password'),'041003');await user.click(screen.getByRole('button',{name:'Sign in'}));await screen.findByRole('heading',{name:'Readings'});
   await user.click(screen.getByRole('button',{name:'Alert history'}));
   await screen.findByRole('heading',{name:'Alerts'});
   const cards=await screen.findAllByRole('button',{name:/p004|Xu Wangshu/});
@@ -74,11 +76,11 @@ it('live API empty and network failure remain distinct without mock fallback',as
   expect(screen.queryByText('Lin Zhiqiu')).not.toBeInTheDocument();
 });
 
-it('password visibility changes display only and account shortcuts fill exact credentials',async()=>{
+it('never displays account credentials and keeps the password masked',async()=>{
   const user=userEvent.setup();render(<App service={new MockDataService()}/>);
   expect(screen.getByLabelText('Password')).toHaveAttribute('type','password');
-  await user.click(screen.getByRole('button',{name:/Patientttj/}));expect(screen.getByLabelText('User ID')).toHaveValue('ttj');expect(screen.getByLabelText('Password')).toHaveValue('041003');
-  await user.click(screen.getByRole('button',{name:'Show'}));expect(screen.getByLabelText('Password')).toHaveAttribute('type','text');
-  await user.click(screen.getByRole('button',{name:'Hide'}));expect(screen.getByLabelText('Password')).toHaveAttribute('type','password');
-  await waitFor(()=>expect(screen.getByLabelText('Password')).toHaveValue('041003'));
+  expect(screen.queryByRole('button',{name:'Show'})).not.toBeInTheDocument();
+  expect(screen.queryByText(/041003|050403/)).not.toBeInTheDocument();
+  await user.type(screen.getByLabelText('User ID'),'ttj');await user.type(screen.getByLabelText('Password'),'041003');
+  await waitFor(()=>expect(screen.getByLabelText('Password')).toHaveAttribute('type','password'));
 });
