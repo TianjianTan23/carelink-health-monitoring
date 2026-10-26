@@ -50,7 +50,7 @@ export class LiveApiService implements DataService {
   private path(key:keyof AppConfig['endpoints'],id?:string){return this.config.endpoints[key].replace('{id}',encodeURIComponent(id??''));}
   private async request<T>(path:string,schema:z.ZodType<T>,options:RequestInit={},empty?:T):Promise<T>{
     let response:Response;
-    try{response=await this.transport(this.config.baseUrl.replace(/\/$/,'')+path,{...options,credentials:'include',headers:{Accept:'application/json',...(options.body?{'Content-Type':'application/json'}:{}),...options.headers},signal:timeoutSignal(8000)});}
+    try{response=await this.transport(this.config.baseUrl.replace(/\/$/,'')+path,{...options,cache:'no-store',credentials:'include',headers:{Accept:'application/json',...(options.body?{'Content-Type':'application/json'}:{}),...options.headers},signal:timeoutSignal(8000)});}
     catch{throw new DataError('network','Network request failed or timed out');}
     if(response.status===204&&empty!==undefined)return empty;
     if(!response.ok)throw new DataError(response.status===403?'forbidden':'http',`API HTTP ${response.status}`,response.status);
@@ -60,7 +60,7 @@ export class LiveApiService implements DataService {
   }
   private allowed(id:string){if(!this.session?.patientIds.includes(id))throw new DataError('forbidden','Patient is outside authenticated session scope');}
   async authenticate(username:string,password:string){this.session=await this.request(this.path('login'),SessionSchema,{method:'POST',body:JSON.stringify({username,password})});return structuredClone(this.session);}
-  async logout(){try{await this.transport(this.config.baseUrl.replace(/\/$/,'')+this.path('logout'),{method:'POST',credentials:'include',headers:{Accept:'application/json'},signal:timeoutSignal(8000)});}catch{/* Local sign-out still clears the UI session. */}this.session=null;}
+  async logout(){try{await this.transport(this.config.baseUrl.replace(/\/$/,'')+this.path('logout'),{method:'POST',cache:'no-store',credentials:'include',headers:{Accept:'application/json'},signal:timeoutSignal(8000)});}catch{/* Local sign-out still clears the UI session. */}this.session=null;}
   async getSession(_mode?:AppMode){this.session=await this.request(this.path('session'),SessionSchema);return structuredClone(this.session);}
   async getPatients(){if(!this.session)throw new DataError('forbidden','Load authenticated session first');const list=await this.request(this.path('patients'),z.array(PatientSchema),{},[]);if(!this.session)throw new DataError('forbidden','Load authenticated session first');if(list.some(p=>!this.session!.patientIds.includes(p.id)))throw new DataError('forbidden','API returned a patient outside authenticated session scope');return list;}
   async getPatient(id:string){this.allowed(id);try{const p=await this.request(this.path('patient',id),PatientSchema);if(p.id!==id)throw new DataError('invalid_data','Patient ID mismatch');return p;}catch(e){if(e instanceof DataError&&e.status===404)return null;throw e;}}

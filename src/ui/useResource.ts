@@ -5,7 +5,9 @@ export function useResource<T>(load:()=>Promise<T>,initial:T,empty:(v:T)=>boolea
   const generation=useRef(0),emptyRef=useRef(empty),key=useRef(identity);emptyRef.current=empty;
   const run=useCallback(async()=>{
     const version=++generation.current;
-    setResource(previous=>({...previous,state:'loading',error:null}));
+    // Keep already-rendered live data visible during background polling. Only
+    // the first request displays the loading state.
+    setResource(previous=>previous.state==='idle'?{...previous,state:'loading',error:null}:{...previous,error:null});
     try{const data=await load();if(version===generation.current)setResource({state:emptyRef.current(data)?'empty':'ready',data,error:null,updatedAt:Date.now()});}
     catch(e){if(version===generation.current)setResource(previous=>({...previous,state:'error',error:e instanceof Error?e.message:'Unknown request error'}));}
   },[load]);

@@ -34,7 +34,7 @@ export function App({service}:{service:DataService}){
 
   useEffect(()=>{
     if(!session)return;
-    const timer=window.setInterval(()=>{void reload();setRefreshVersion(version=>version+1);},3000);
+    const timer=window.setInterval(()=>{void reload();setRefreshVersion(version=>version+1);},1000);
     return()=>window.clearInterval(timer);
   },[session,reload]);
   useEffect(()=>{if(authorized.length&&!authorized.some(patient=>patient.id===selected))setSelected(authorized[0].id);},[authorized,selected]);
@@ -78,7 +78,7 @@ export function App({service}:{service:DataService}){
         </div>
       </aside>
       <div className="workspace">
-        <header className="topbar"><div className="breadcrumbs">CareLink <span>/</span> {t(navigation.find(item=>item[0]===page)?.[1]??'',navigation.find(item=>item[0]===page)?.[2]??'')}</div><div className="top-actions"><span className={`source-chip ${service.mode}`}>{service.mode==='mock'?'DEMO':'LIVE API'}</span><button className="button quiet" onClick={refresh}><Icon name="refresh" size={16}/>{t('刷新','Refresh')}</button><button className="button quiet" onClick={toggleLanguage}>{lang==='zh'?'English':'中文'}</button><button className="icon-button" aria-label={theme==='light'?t('切换深色','Switch to dark'):t('切换浅色','Switch to light')} onClick={toggleTheme}><Icon name={theme==='light'?'moon':'sun'}/></button><span className="user-chip" title={session.userId}>{session.role==='clinician'?'N':'P'}</span></div></header>
+        <header className="topbar"><div className="breadcrumbs">CareLink <span>/</span> {t(navigation.find(item=>item[0]===page)?.[1]??'',navigation.find(item=>item[0]===page)?.[2]??'')}</div><div className="top-actions"><span className={`source-chip ${service.mode}`}>{service.mode==='mock'?'DEMO':t('实时 API · 1秒','LIVE API · 1s')}</span><button className="button quiet" onClick={refresh}><Icon name="refresh" size={16}/>{t('刷新','Refresh')}</button><button className="button quiet" onClick={toggleLanguage}>{lang==='zh'?'English':'中文'}</button><button className="icon-button" aria-label={theme==='light'?t('切换深色','Switch to dark'):t('切换浅色','Switch to light')} onClick={toggleTheme}><Icon name={theme==='light'?'moon':'sun'}/></button><span className="user-chip" title={session.userId}>{session.role==='clinician'?'N':'P'}</span></div></header>
         <main id="main" tabIndex={-1}><SourceNotice/><ResourceNotice resource={patients} retry={refresh} emptyLabel={t('暂无授权患者','No authorized patients')}/>{content}<footer>CareLink · {t('健康监测课程项目','Health monitoring coursework')}<span>{t('心率 · 体温 · 跌倒','Heart rate · Temperature · Fall')}</span></footer></main>
       </div>
     </div>

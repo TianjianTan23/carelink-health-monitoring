@@ -73,6 +73,7 @@ describe('LiveApiService proposed API requests',()=>{
   const transport=fake({'/api/session':sessions.pro,'/api/patients':[p],'/api/patients/p004':p,'/api/patients/p004/readings?minutes=1440':[p.reading],'/api/patients/p004/predictions':[prediction],'/api/alerts':[a]});
   const api=new LiveApiService(liveConfig,transport);await api.getSession('basic');expect((await api.getPatients())[0].reading?.source).toBe('device');expect((await api.getPatient('p004'))?.id).toBe('p004');expect(await api.getReadings('p004')).toHaveLength(1);expect((await api.getPredictions('p004'))[0].confidence).toBe(0);expect(AlertSchema.safeParse((await api.getAlerts())[0]).success).toBe(true);
   expect(transport.mock.calls.every(([,init])=>init?.credentials==='include')).toBe(true);
+  expect(transport.mock.calls.every(([,init])=>init?.cache==='no-store')).toBe(true);
  });
  it('uses returned backend role, not requested demo mode',async()=>{
   const api=new LiveApiService(liveConfig,fake({'/api/session':sessions.basic,'/api/patients':[patient()]}));expect((await api.getSession('pro')).mode).toBe('basic');await expect(api.getPatient('p001')).rejects.toMatchObject({code:'forbidden'});await expect(api.acknowledgeAlert('any')).rejects.toMatchObject({code:'forbidden'});

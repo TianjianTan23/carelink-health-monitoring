@@ -23,7 +23,66 @@ The login page does not display or prefill credentials, and the password input c
 
 Both roles can view readings, history, charts, classifications, confidence, abnormal parameters, alert history, and settings. The patient page is scoped to the signed-in patient's own data.
 
-## Run the full system on macOS
+## Run the complete live system on macOS
+
+The checked-in configuration uses `live` mode. It does not load the mock
+patients or generate changing values in the browser. From a fresh clone, run:
+
+```sh
+npm start
+```
+
+This single command creates `.venv` when necessary, installs the Python and
+Node dependencies, builds the React UI, and starts FastAPI on
+`0.0.0.0:8000`. Keep that Terminal window open and visit:
+
+```text
+http://127.0.0.1:8000
+```
+
+The dashboard requests fresh API data every second with browser caching
+disabled. A new clone starts with an empty SQLite database, so values cannot
+change until a sensor producer posts snapshots to `/sensor-data`.
+
+### Verify real-time updates without hardware
+
+The coursework permits synthetic sensor data. In a second Terminal window,
+run this separate input tool to exercise the real FastAPI, trained model,
+SQLite tables, alert logic and live UI:
+
+```sh
+npm run simulate:sensors
+```
+
+It cycles through normal, warning and critical readings once per second. Stop
+it with `Ctrl+C`. This is an explicit test producer; the UI and backend remain
+in live mode. You can also select one state:
+
+```sh
+npm run simulate:sensors -- --scenario=normal
+npm run simulate:sensors -- --scenario=warning
+npm run simulate:sensors -- --scenario=critical
+```
+
+### Connect the physical ESP32
+
+Copy `firmware/elder_sensors/secrets.example.h` to the ignored `secrets.h`,
+then set `SERVER_URL` to the LAN IP printed by `npm start`. The URL must end in
+`/sensor-data`. Recompile and upload the sketch whenever the gateway Mac or
+network changes.
+
+Before opening the UI, verify that the API is running:
+
+```sh
+curl http://127.0.0.1:8000/health
+```
+
+Then watch the API Terminal while the ESP32 is running. It must receive a new
+`POST /sensor-data` repeatedly. If no POST arrives, the UI correctly retains
+the last SQLite record and eventually marks it stale; it must not invent new
+measurements.
+
+### Manual development setup
 
 From this repository directory, install and start the API:
 
@@ -33,16 +92,18 @@ python3 -m venv .venv
 .venv/bin/python -m uvicorn backend.app:app --host 0.0.0.0 --port 8000
 ```
 
-In a second Terminal window, install and start the React development UI:
+In a second Terminal window, install and start the React development UI with
+hot reload:
 
 ```sh
 npm ci
-npm start
+npm run dev
 ```
 
 Open [http://127.0.0.1:5173](http://127.0.0.1:5173). Vite forwards `/api`, `/sensor-data`, and `/health` to the FastAPI process on port 8000.
 
-For a single production-style process:
+The one-command `npm start` path above is the preferred production-style local
+run. Its underlying manual commands are:
 
 ```sh
 npm run build
@@ -51,7 +112,11 @@ npm run build
 
 Then open [http://127.0.0.1:8000](http://127.0.0.1:8000). FastAPI serves the generated React build as well as the API.
 
-If another older sensor server is already using port 8000, stop it before starting this API. The ESP32 and the computer must be on the same network, and the ESP32 upload URL must be `http://<Mac-LAN-IP>:8000/sensor-data`; `127.0.0.1` only works from the Mac itself.
+If another older sensor server is already using port 8000, stop it before
+starting this API. The ESP32 and the computer must be on the same network, and
+the ESP32 upload URL must be `http://<Mac-LAN-IP>:8000/sensor-data`;
+`127.0.0.1` only works from the Mac itself. Each team member has a different
+LAN IP, so copying another member's `secrets.h` will not work.
 
 ## Sensor input
 
