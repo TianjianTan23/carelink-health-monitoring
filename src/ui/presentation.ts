@@ -1,9 +1,9 @@
 import {triage,lcdFrames} from '../../dist/rules.js';
 import {translate} from '../../dist/i18n.js';
 import type {DemoRules,Language,Level,MetricKey,Patient,SensorReading,ServiceMode} from '../data/models';
-export const metricKeys:MetricKey[]=['hr','spo2','temp'];
-export const units={hr:'bpm',spo2:'%',temp:'°C'};
-export const metricName=(k:MetricKey,l:Language)=>({hr:l==='zh'?'心率':'Heart rate',spo2:l==='zh'?'血氧':'SpO₂',temp:l==='zh'?'温度':'Temperature'})[k];
+export const metricKeys:MetricKey[]=['hr','temp'];
+export const units={hr:'bpm',temp:'°C'};
+export const metricName=(k:MetricKey,l:Language)=>({hr:l==='zh'?'心率':'Heart rate',temp:l==='zh'?'体温':'Temperature'})[k];
 export const levelName=(v:Level,l:Language)=>({red:l==='zh'?'优先查看':'Review urgently',yellow:l==='zh'?'需要关注':'Needs attention',green:l==='zh'?'未见异常':'No reported alerts',unknown:l==='zh'?'数据待确认':'Data unverified'})[v];
 const englishNames:Record<string,string>={p001:'Lin Zhiqiu',p002:'Zhou Yuanshan',p003:'Chen Jinghe',p004:'Xu Wangshu',p005:'Shen Huaichuan',p006:'Lu Qinghe',p007:'Gu Yunzhou',p008:'Su Wanqing'};
 export const patientName=(p:Patient,l:Language,mode:ServiceMode='mock')=>l==='en'&&mode==='mock'?englishNames[p.id]??p.name:p.name;
@@ -37,9 +37,9 @@ export function displayFrames(r:SensorReading|null,mode:ServiceMode,rules:DemoRu
   if(mode==='mock')return lcdFrames(copy,rules,now);
   const row=(a:string,b:string)=>[a.slice(0,16).padEnd(16,' '),b.slice(0,16).padEnd(16,' ')];
   if(r?.fall.active)return [row('! FALL DETECTED!','CHECK PERSON NOW')];
-  if(!fresh(r,rules,now))return [row(r?.connected?'DATA STALE':'DEVICE OFFLINE','HR:--- O2:---')];
+  if(!fresh(r,rules,now))return [row(r?.connected?'DATA STALE':'DEVICE OFFLINE','HR:--- T:---')];
   const v=(k:MetricKey)=>value(r,k,rules,'en',now).text.replace('—','---');
-  const frames=[row(`HR:${v('hr')} O2:${v('spo2')}%`,`SURF T:${v('temp')}C`)];
+  const frames=[row(`HR:${v('hr')} BPM`,`TEMP:${v('temp')} C`)];
   if(r?.assessment?.level==='red')frames.unshift(row('! BACKEND ALERT','CHECK PERSON NOW'));
   return frames;
 }

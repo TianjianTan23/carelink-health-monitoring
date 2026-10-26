@@ -1,8 +1,8 @@
 import {z} from 'zod';
 import {DataError} from './service';
-export const defaultEndpoints={session:'/api/session',patients:'/api/patients',patient:'/api/patients/{id}',readings:'/api/patients/{id}/readings?minutes=10',predictions:'/api/patients/{id}/predictions',alerts:'/api/alerts',acknowledge:'/api/alerts/{id}/acknowledgement'};
+export const defaultEndpoints={login:'/api/login',logout:'/api/logout',session:'/api/session',patients:'/api/patients',patient:'/api/patients/{id}',readings:'/api/patients/{id}/readings?minutes=1440',predictions:'/api/patients/{id}/predictions',alerts:'/api/alerts',acknowledge:'/api/alerts/{id}/acknowledgement'};
 const endpoint=z.string().startsWith('/').refine(s=>!s.startsWith('//')&&!s.includes('://'),'Use an API path, not an external URL');
-export const ConfigSchema=z.object({mode:z.enum(['mock','live']),baseUrl:z.string().default(''),apiConfirmed:z.boolean().default(false),staleAfterSeconds:z.number().positive().default(30),endpoints:z.object({session:endpoint,patients:endpoint,patient:endpoint,readings:endpoint,predictions:endpoint,alerts:endpoint,acknowledge:endpoint}).default(defaultEndpoints)});
+export const ConfigSchema=z.object({mode:z.enum(['mock','live']),baseUrl:z.string().default(''),apiConfirmed:z.boolean().default(false),staleAfterSeconds:z.number().positive().default(30),endpoints:z.object({login:endpoint,logout:endpoint,session:endpoint,patients:endpoint,patient:endpoint,readings:endpoint,predictions:endpoint,alerts:endpoint,acknowledge:endpoint}).default(defaultEndpoints)});
 export type AppConfig=z.infer<typeof ConfigSchema>;
 export const defaultConfig:AppConfig={mode:'mock',baseUrl:'',apiConfirmed:false,staleAfterSeconds:30,endpoints:defaultEndpoints};
 export function validateConfig(input:unknown):AppConfig {

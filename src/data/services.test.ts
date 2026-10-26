@@ -1,4 +1,4 @@
-import {describe,it,expect,vi} from 'vitest';
+import {afterEach,describe,it,expect,vi} from 'vitest';
 import {MockDataService} from './MockDataService';
 import {LiveApiService} from './LiveApiService';
 import {defaultConfig,validateConfig} from './config';
@@ -14,6 +14,7 @@ import apiAcknowledgement from '../../shared/api-examples/acknowledgement.json';
 const liveConfig={...defaultConfig,mode:'live' as const,apiConfirmed:true,baseUrl:'https://backend.example'};
 const patient=()=>({...structuredClone(profiles[3]),reading:{...makeReading('p004','normal')!,source:'device'}});
 const alert=():Alert=>({id:'alert-1',patientId:'p004',type:'fall',severity:'red',occurredAt:new Date().toISOString(),updatedAt:new Date().toISOString(),status:'new',conditionActive:true,acknowledgedAt:null,acknowledgedBy:null,resolvedAt:null,summary:'Device-reported fall',source:'backend'});
+afterEach(()=>vi.unstubAllGlobals());
 function fake(routes:Record<string,unknown>,options:{status?:Record<string,number>;reject?:string[]}={}){
  return vi.fn(async(input:RequestInfo|URL,init?:RequestInit)=>{
   const url=String(input).replace('https://backend.example','');const key=`${init?.method??'GET'} ${url}`;
@@ -53,10 +54,23 @@ describe('configuration and unified models',()=>{
  });
 });
 describe('LiveApiService proposed API requests',()=>{
+ it('falls back to XMLHttpRequest when embedded-browser fetch is blocked',async()=>{
+  class WorkingXHR {
+   method='';url='';withCredentials=false;timeout=0;status=200;responseText=JSON.stringify(sessions.pro);
+   onload:(()=>void)|null=null;onerror:(()=>void)|null=null;ontimeout:(()=>void)|null=null;onabort:(()=>void)|null=null;
+   open(method:string,url:string){this.method=method;this.url=url;}
+   setRequestHeader(){}
+   send(){queueMicrotask(()=>this.onload?.());}
+  }
+  vi.stubGlobal('fetch',vi.fn().mockRejectedValue(new Error('embedded fetch blocked')));
+  vi.stubGlobal('XMLHttpRequest',WorkingXHR);
+  const api=new LiveApiService(liveConfig);
+  await expect(api.getSession()).resolves.toMatchObject({userId:'wyn',role:'clinician'});
+ });
  it('reads session, list, detail, ten-minute readings, predictions and alerts; preserves actual confidence',async()=>{
   const p=patient(),a=alert();const prediction={id:'pred-1',patientId:'p004',state:'available',predictedAt:new Date().toISOString(),inputsMeasuredAt:p.reading.measuredAt,model:'team-model',modelVersion:'0.1',result:{label:'team-defined'},confidence:0,confidenceMeaning:'Uncalibrated score; meaning to confirm',source:'backend',modelName:null};
   // model is part of the agreed draft shape; no guessed confidence scale or result.
-  const transport=fake({'/api/session':sessions.pro,'/api/patients':[p],'/api/patients/p004':p,'/api/patients/p004/readings?minutes=10':[p.reading],'/api/patients/p004/predictions':[prediction],'/api/alerts':[a]});
+  const transport=fake({'/api/session':sessions.pro,'/api/patients':[p],'/api/patients/p004':p,'/api/patients/p004/readings?minutes=1440':[p.reading],'/api/patients/p004/predictions':[prediction],'/api/alerts':[a]});
   const api=new LiveApiService(liveConfig,transport);await api.getSession('basic');expect((await api.getPatients())[0].reading?.source).toBe('device');expect((await api.getPatient('p004'))?.id).toBe('p004');expect(await api.getReadings('p004')).toHaveLength(1);expect((await api.getPredictions('p004'))[0].confidence).toBe(0);expect(AlertSchema.safeParse((await api.getAlerts())[0]).success).toBe(true);
   expect(transport.mock.calls.every(([,init])=>init?.credentials==='include')).toBe(true);
  });
@@ -64,14 +78,14 @@ describe('LiveApiService proposed API requests',()=>{
   const api=new LiveApiService(liveConfig,fake({'/api/session':sessions.basic,'/api/patients':[patient()]}));expect((await api.getSession('pro')).mode).toBe('basic');await expect(api.getPatient('p001')).rejects.toMatchObject({code:'forbidden'});await expect(api.acknowledgeAlert('any')).rejects.toMatchObject({code:'forbidden'});
  });
  it('handles []/204 lists and 404 detail as empty; other errors remain errors',async()=>{
-  const api=new LiveApiService(liveConfig,fake({'/api/session':sessions.pro,'/api/patients':[],'/api/patients/p004':null},{status:{'/api/alerts':204,'/api/patients/p004':404,'/api/patients/p004/predictions':204,'/api/patients/p004/readings?minutes=10':204}}));await api.getSession();expect(await api.getPatients()).toEqual([]);expect(await api.getAlerts()).toEqual([]);expect(await api.getReadings('p004')).toEqual([]);expect(await api.getPredictions('p004')).toEqual([]);expect(await api.getPatient('p004')).toBeNull();
+  const api=new LiveApiService(liveConfig,fake({'/api/session':sessions.pro,'/api/patients':[],'/api/patients/p004':null},{status:{'/api/alerts':204,'/api/patients/p004':404,'/api/patients/p004/predictions':204,'/api/patients/p004/readings?minutes=1440':204}}));await api.getSession();expect(await api.getPatients()).toEqual([]);expect(await api.getAlerts()).toEqual([]);expect(await api.getReadings('p004')).toEqual([]);expect(await api.getPredictions('p004')).toEqual([]);expect(await api.getPatient('p004')).toBeNull();
  });
  it.each([401,403,500])('propagates HTTP %i without mock fallback',async code=>{
   const api=new LiveApiService(liveConfig,fake({'/api/session':sessions.pro},{status:{'/api/patients':code}}));await api.getSession();await expect(api.getPatients()).rejects.toMatchObject({status:code});
  });
  it('propagates network failure and rejects malformed/cross-patient data',async()=>{
   const network=new LiveApiService(liveConfig,fake({'/api/session':sessions.pro},{reject:['/api/patients']}));await network.getSession();await expect(network.getPatients()).rejects.toMatchObject({code:'network'});
-  const invalid=new LiveApiService(liveConfig,fake({'/api/session':sessions.pro,'/api/patients':{items:[patient()]},'/api/patients/p004/readings?minutes=10':[makeReading('p001')]}));await invalid.getSession();await expect(invalid.getPatients()).rejects.toMatchObject({code:'invalid_data'});await expect(invalid.getReadings('p004')).rejects.toMatchObject({code:'invalid_data'});
+  const invalid=new LiveApiService(liveConfig,fake({'/api/session':sessions.pro,'/api/patients':{items:[patient()]},'/api/patients/p004/readings?minutes=1440':[makeReading('p001')]}));await invalid.getSession();await expect(invalid.getPatients()).rejects.toMatchObject({code:'invalid_data'});await expect(invalid.getReadings('p004')).rejects.toMatchObject({code:'invalid_data'});
  });
  it('accepts acknowledgement only after POST response confirms requested alert',async()=>{
   const a=alert();const confirmed={...a,status:'acknowledged',acknowledgedAt:new Date().toISOString(),acknowledgedBy:'clinician-1'};
@@ -81,8 +95,8 @@ describe('LiveApiService proposed API requests',()=>{
  it('keeps absent prediction fields null/undefined and never fabricates a result',()=>{
   const p=PredictionSchema.parse({state:'not_connected',model:null,result:null,confidence:null});expect(p.confidence).toBeNull();expect(p.predictedAt).toBeUndefined();expect(p.result).toBeNull();
  });
- it('confines returned history to the real ten-minute window without filling gaps',async()=>{
+ it('keeps the API returned history without filling gaps',async()=>{
   const now=Date.now();const history=[makeReading('p004','normal',now-700000),makeReading('p004','normal',now-30000),makeReading('p004','normal',now+60000)];
-  const api=new LiveApiService(liveConfig,fake({'/api/session':sessions.pro,'/api/patients/p004/readings?minutes=10':history}));await api.getSession();const rows=await api.getReadings('p004');expect(rows).toHaveLength(1);expect(rows[0].measuredAt).toBe(history[1]!.measuredAt);
+  const api=new LiveApiService(liveConfig,fake({'/api/session':sessions.pro,'/api/patients/p004/readings?minutes=1440':history}));await api.getSession();const rows=await api.getReadings('p004');expect(rows).toHaveLength(3);expect(rows[0].measuredAt).toBe(history[2]!.measuredAt);
  });
 });

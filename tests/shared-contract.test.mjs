@@ -24,7 +24,7 @@ test('Web classifies the shared cross-language golden vectors consistently',()=>
 test('Demo Pro and Basic sessions have distinct patient scopes and immutable fixtures',async()=>{
   const s=new MockService(),patients=await s.getPatients();
   const pro=await s.getSession('pro'),basic=await s.getSession('basic');
-  assert.equal(pro.role,'clinician');assert.equal(basic.role,'family');
+  assert.equal(pro.role,'clinician');assert.equal(pro.userId,'wyn');assert.equal(basic.role,'patient');assert.equal(basic.userId,'ttj');
   assert.equal(patients.filter(p=>pro.patientIds.includes(p.id)).length,8);
   assert.deepEqual(patients.filter(p=>basic.patientIds.includes(p.id)).map(p=>p.id),['p004']);
   basic.patientIds.push('p001');assert.deepEqual((await s.getSession('basic')).patientIds,['p004']);

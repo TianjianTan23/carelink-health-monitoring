@@ -26,7 +26,7 @@ test('stale after timeout, future/missing timestamp is not green',()=>{
 test('1602 frames always have exactly two ASCII rows of 16 characters; alarm takes priority',()=>{
   for(const scene of ['normal','mild','severe','fall','poor','unavailable','offline','stale','noData'])for(const frame of lcdFrames(makeReading('p001',scene,now),DEFAULT_RULES,now)){assert.equal(frame.length,2);for(const row of frame){assert.equal(row.length,16);assert.match(row,/^[\x20-\x7e]{16}$/);}}
   assert.match(lcdFrames(makeReading('p001','fall',now),DEFAULT_RULES,now)[0][0],/FALL DETECTED/);
-  const a=lcdFrames(makeReading('p001','unavailable',now),DEFAULT_RULES,now);assert.match(a[0][0],/HR:--- O2:---/);
+  const a=lcdFrames(makeReading('p001','unavailable',now),DEFAULT_RULES,now);assert.match(a[0][0],/HR:--- BPM/);
 });
 test('patient-scoped scenarios, history windows, no fake AI and reset',async()=>{
   const s=new MockService();const all=await s.getPatients();assert.equal(all.length,8);assert.equal(new Set(all.map(p=>p.id)).size,8);

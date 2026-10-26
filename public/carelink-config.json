@@ -1,13 +1,15 @@
 {
-  "mode": "mock",
+  "mode": "live",
   "baseUrl": "",
-  "apiConfirmed": false,
+  "apiConfirmed": true,
   "staleAfterSeconds": 30,
   "endpoints": {
+    "login": "/api/login",
+    "logout": "/api/logout",
     "session": "/api/session",
     "patients": "/api/patients",
     "patient": "/api/patients/{id}",
-    "readings": "/api/patients/{id}/readings?minutes=10",
+    "readings": "/api/patients/{id}/readings?minutes=1440",
     "predictions": "/api/patients/{id}/predictions",
     "alerts": "/api/alerts",
     "acknowledge": "/api/alerts/{id}/acknowledgement"

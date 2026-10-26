@@ -13,6 +13,14 @@ export class MockDataService implements DataService {
   private userId='demo-clinician';
   private session:ReturnType<typeof SessionSchema.parse>|null=null;
   get rules(){return this.legacy.rules as DemoRules;}
+  async authenticate(username:string,password:string){
+    this.checkNetwork();
+    const account=username.trim().toLowerCase();
+    if(account==='ttj'&&password==='041003')return this.getSession('basic');
+    if(account==='wyn'&&password==='050403')return this.getSession('pro');
+    throw new DataError('forbidden','Invalid user ID or password',401);
+  }
+  async logout(){this.session=null;}
   async getSession(mode:AppMode='pro'){this.checkNetwork();
     this.session=SessionSchema.parse(await this.legacy.getSession(mode));this.userId=this.session.userId;return structuredClone(this.session);
   }

@@ -3,6 +3,8 @@ export type Scenario='normal'|'mild'|'severe'|'fall'|'poor'|'unavailable'|'offli
 export interface DataService {
   readonly mode:ServiceMode;
   readonly rules:DemoRules;
+  authenticate(username:string,password:string):Promise<Session>;
+  logout?():Promise<void>;
   getSession(mode?:AppMode):Promise<Session>;
   getPatients():Promise<Patient[]>;
   getPatient(id:string):Promise<Patient|null>;

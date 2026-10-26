@@ -3,7 +3,6 @@ import {DEMO_RULES} from './fixtures.js';
 export const DEFAULT_RULES = Object.freeze(DEMO_RULES);
 export const METRICS = {
   hr:{name:'心率',unit:'bpm',sensor:'MAX30102',icon:'heart'},
-  spo2:{name:'血氧',unit:'%',sensor:'MAX30102',icon:'drop'},
   temp:{name:'温度',unit:'°C',sensor:'MLX90614 · 表面测温',icon:'temp'}
 };
 export const STATUS = {
@@ -51,10 +50,10 @@ export function lcdFrames(reading,rules=DEFAULT_RULES,now=Date.now()) {
   const fit=s=>s.slice(0,16).padEnd(16,' ');
   const row=(a,b)=>[fit(a),fit(b)];
   if(reading?.fall?.active) return [row('! FALL DETECTED!','CHECK PERSON NOW')];
-  if(!isFresh(reading,rules,now)) return [row(reading?.connected?'DATA STALE':'DEVICE OFFLINE','HR:--- O2:---')];
+  if(!isFresh(reading,rules,now)) return [row(reading?.connected?'DATA STALE':'DEVICE OFFLINE','HR:--- T:---')];
   const t=triage(reading,rules,now);
   const v=k=>displayMetric(reading,k,rules,now).text.replace('—','---');
-  const frames=[row(`HR:${v('hr')} O2:${v('spo2')}%`,`SURF T:${v('temp')}C`),row(`FALL:${reading.fall?.quality==='good'?'NONE':'UNKNOWN'}`,t.incomplete?'SENSOR CHECK':'DEMO / SIMULATED')];
+  const frames=[row(`HR:${v('hr')} BPM`,`TEMP:${v('temp')} C`),row(`FALL:${reading.fall?.quality==='good'?'NONE':'UNKNOWN'}`,t.incomplete?'SENSOR CHECK':'DEMO / SIMULATED')];
   if(t.level==='red') frames.unshift(row('! VALUE ALERT !','CHECK PERSON NOW'));
   else if(t.level==='yellow') frames.unshift(row('VALUE ATTENTION','PLEASE CHECK'));
   return frames;

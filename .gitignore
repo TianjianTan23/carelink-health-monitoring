@@ -4,3 +4,10 @@ build/
 coverage/
 .env.local
 *.tsbuildinfo
+.venv/
+.vercel/
+__pycache__/
+backend/*.db
+backend/*.db-shm
+backend/*.db-wal
+.env*

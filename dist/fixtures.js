@@ -518,7 +518,7 @@ export const DEMO_RULES = {
 };
 export const DEMO_SESSIONS = {
   "pro": {
-    "userId": "demo-clinician",
+    "userId": "wyn",
     "role": "clinician",
     "mode": "pro",
     "patientIds": [
@@ -533,8 +533,8 @@ export const DEMO_SESSIONS = {
     ]
   },
   "basic": {
-    "userId": "demo-family",
-    "role": "family",
+    "userId": "ttj",
+    "role": "patient",
     "mode": "basic",
     "patientIds": [
       "p004"

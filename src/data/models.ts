@@ -10,14 +10,14 @@ export const PredictionSchema=z.object({
   id:z.string().nullable().optional(),patientId:z.string().nullable().optional(),
   predictedAt:timestamp.nullable().optional(),inputsMeasuredAt:timestamp.nullable().optional(),
   model:z.string().nullable(),modelVersion:z.string().nullable().optional(),
-  result:z.unknown().optional(),confidence:z.number().finite().nullable(),
+  result:z.unknown().optional(),confidence:z.number().finite().min(0).max(1).nullable(),
   confidenceMeaning:z.string().nullable().optional(),source:source.optional(),
 });
 const vector=z.object({x:z.number().finite(),y:z.number().finite(),z:z.number().finite()});
 export const AssessmentSchema=z.object({level:LevelSchema,reasons:z.array(z.string()),assessedAt:timestamp,ruleSetId:z.string().nullable(),origin:z.literal('backend')});
 export const SensorReadingSchema=z.object({
   patientId:z.string().min(1),deviceId:z.string().min(1),measuredAt:timestamp,receivedAt:timestamp,
-  connected:z.boolean(),metrics:z.object({hr:MetricSchema,spo2:MetricSchema,temp:MetricSchema}),
+  connected:z.boolean(),metrics:z.object({hr:MetricSchema,temp:MetricSchema,spo2:MetricSchema.optional()}),
   fall:z.object({active:z.boolean(),quality:QualitySchema,eventAt:timestamp.nullable().optional()}),
   raw:z.object({accel_m_s2:vector.nullable(),gyro_deg_s:vector.nullable(),ir:z.number().nullable(),red:z.number().nullable(),object_temperature_c:z.number().nullable(),ambient_temperature_c:z.number().nullable()}).nullable(),
   ai:PredictionSchema,source,scenario:z.string().optional(),assessment:AssessmentSchema.nullable().optional(),
@@ -46,7 +46,7 @@ export type Alert=z.infer<typeof AlertSchema>;
 export type Session=z.infer<typeof SessionSchema>;
 export type Quality=z.infer<typeof QualitySchema>;
 export type Level=z.infer<typeof LevelSchema>;
-export type MetricKey='hr'|'spo2'|'temp';
+export type MetricKey='hr'|'temp';
 export type AppMode='pro'|'basic';
 export type Language='zh'|'en';
 export type ServiceMode='mock'|'live';

@@ -175,7 +175,7 @@
       "connected": true,
       "metrics": {
         "hr": {
-          "value": 73,
+          "value": 142,
           "quality": "good"
         },
         "spo2": {
@@ -883,7 +883,7 @@
       "source": "mock",
       "scenario": "normal"
     },
-    "expected": "red"
+    "expected": "green"
   },
   {
     "name": "spo2-90",
@@ -938,7 +938,7 @@
       "source": "mock",
       "scenario": "normal"
     },
-    "expected": "yellow"
+    "expected": "green"
   },
   {
     "name": "spo2-95",

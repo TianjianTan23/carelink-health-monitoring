@@ -13,7 +13,7 @@ export function makeReading(patientId,scenario='normal',now=Date.now(),offset=0)
     ai:{state:'not_connected',model:null,result:null,confidence:null},source:'mock',scenario};
   if(scenario==='mild') r.metrics.hr=good(108+offset);
   if(scenario==='warm') r.metrics.temp=good(38.1);
-  if(scenario==='severe') r.metrics.spo2=good(87);
+  if(scenario==='severe') {r.metrics.hr=good(142+offset);r.metrics.spo2=good(87);}
   if(scenario==='fall') { r.fall={active:true,quality:'good',eventAt:new Date(now-45000).toISOString()};r.raw.accel_m_s2={x:3.4,y:9.6,z:1.2}; }
   if(scenario==='poor') {r.metrics.hr={value:148,quality:'poor'};r.metrics.spo2={value:82,quality:'poor'};}
   if(scenario==='unavailable') {r.metrics.hr={value:null,quality:'unavailable'};r.metrics.spo2={value:null,quality:'unavailable'};r.raw.ir=null;r.raw.red=null;}

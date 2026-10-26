@@ -1,59 +1,104 @@
-import React,{useCallback,useEffect,useRef,useState} from 'react';
-import type {Alert,AppMode,Language,Level,Patient,Session} from './data/models';
-import type {DataService,Scenario} from './data/service';
-import {UIContext,useUI} from './ui/context';
-import {Avatar,Badge,MetricGrid,ResourceNotice,SourceNotice,StatusPanel} from './ui/components';
+import React,{useCallback,useEffect,useState} from 'react';
+import type {Language,Patient,Session} from './data/models';
+import type {DataService} from './data/service';
+import {UIContext} from './ui/context';
 import {Icon} from './ui/Icons';
-import {levelName,localized,metricKeys,metricName,patientName,status,time,units,value} from './ui/presentation';
+import {ResourceNotice,SourceNotice} from './ui/components';
+import {AlertsPage} from './ui/pages';
+import {ChartsPage,ClassificationsPage,HistoryPage,ReadingsPage,SettingsPage} from './ui/monitoring-pages';
 import {useResource} from './ui/useResource';
-import {PatientDetail,AlertsPage,LCDPage,RulesPage} from './ui/pages';
-type Page='home'|'patient'|'alerts'|'lcd'|'rules';
+
+type Page='readings'|'history'|'charts'|'classifications'|'alerts'|'settings';
+
 function stored(key:string,fallback:string){try{return localStorage.getItem(key)||fallback;}catch{return fallback;}}
-function remember(key:string,v:string){try{localStorage.setItem(key,v);}catch{/* Preferences are optional. */}}
+function remember(key:string,value:string){try{localStorage.setItem(key,value);}catch{/* Preferences are optional. */}}
+
 export function App({service}:{service:DataService}){
-  const [lang,setLang]=useState<Language>(stored('carelink-v2-language','zh')==='en'?'en':'zh');
-  const [theme,setTheme]=useState(stored('carelink-v2-theme','light')==='dark'?'dark':'light');
-  const [session,setSession]=useState<Session|null>(null),[page,setPage]=useState<Page>('home'),[selected,setSelected]=useState('');
-  const [refreshVersion,setRefreshVersion]=useState(0),[now,setNow]=useState(Date.now()),[controls,setControls]=useState(false);
-  const [paused,setPaused]=useState(false),[demoFailure,setDemoFailure]=useState(false);
-  useEffect(()=>{window.scrollTo({top:0,left:0,behavior:'instant'});},[page,selected]);
+  const [lang,setLang]=useState<Language>(stored('carelink-v3-language','en')==='zh'?'zh':'en');
+  const [theme,setTheme]=useState(stored('carelink-v3-theme','light')==='dark'?'dark':'light');
+  const [session,setSession]=useState<Session|null>(null);
+  const [page,setPage]=useState<Page>('readings');
+  const [selected,setSelected]=useState('');
+  const [refreshVersion,setRefreshVersion]=useState(0);
+  const [now,setNow]=useState(Date.now());
   const t=useCallback((zh:string,en:string)=>lang==='zh'?zh:en,[lang]);
-  useEffect(()=>{document.documentElement.lang=lang==='zh'?'zh-CN':'en';remember('carelink-v2-language',lang);},[lang]);
-  useEffect(()=>{document.documentElement.dataset.theme=theme;remember('carelink-v2-theme',theme);},[theme]);
-  useEffect(()=>{const id=setInterval(()=>setNow(Date.now()),5000);return()=>clearInterval(id);},[]);
-  const load=useCallback(async()=>{if(demoFailure&&service.mode==='mock')throw new Error('Simulated connection failure');return service.refresh();},[service,demoFailure,session]);
-  const [patients,reload]=useResource(load,[] as Patient[],data=>data.length===0,session!==null,`${session?.userId??"signed-out"}:${session?.mode??"none"}`);
-  useEffect(()=>{if(!session||paused||controls||service.mode!=='mock')return;const id=setInterval(()=>{if(document.activeElement?.matches('input,select,textarea'))return;void reload();setRefreshVersion(v=>v+1);},5000);return()=>clearInterval(id);},[session,paused,controls,service,reload]);
-  const refresh=()=>{void reload();setRefreshVersion(v=>v+1);setNow(Date.now());};
-  const authorized=patients.data.filter(p=>session?.patientIds.includes(p.id));
-  const navigate=(next:Page,id?:string)=>{if(next==='patient'&&session?.mode!=='pro')return;if(id)setSelected(id);setPage(next);};
-  const signedIn=(s:Session)=>{setSession(s);setSelected(s.patientIds[0]??'');setPage('home');};
-  const signOut=()=>{service.setNetworkFailure?.(false);setSession(null);setControls(false);setDemoFailure(false);setPage('home');};
+
+  useEffect(()=>{document.documentElement.lang=lang==='zh'?'zh-CN':'en';remember('carelink-v3-language',lang);},[lang]);
+  useEffect(()=>{document.documentElement.dataset.theme=theme;remember('carelink-v3-theme',theme);},[theme]);
+  useEffect(()=>{const timer=window.setInterval(()=>setNow(Date.now()),1000);return()=>window.clearInterval(timer);},[]);
+  useEffect(()=>{window.scrollTo({top:0,left:0,behavior:'instant'});},[page,selected]);
+
+  const load=useCallback(()=>service.refresh(),[service,session?.userId]);
+  const [patients,reload]=useResource(load,[] as Patient[],rows=>rows.length===0,session!==null,session?.userId??'signed-out');
+  const authorized=patients.data.filter(patient=>session?.patientIds.includes(patient.id));
+
+  useEffect(()=>{
+    if(!session)return;
+    const timer=window.setInterval(()=>{void reload();setRefreshVersion(version=>version+1);},3000);
+    return()=>window.clearInterval(timer);
+  },[session,reload]);
+  useEffect(()=>{if(authorized.length&&!authorized.some(patient=>patient.id===selected))setSelected(authorized[0].id);},[authorized,selected]);
+
+  const signedIn=(next:Session)=>{setSession(next);setSelected(next.patientIds[0]??'');setPage('readings');setRefreshVersion(version=>version+1);};
+  const signOut=async()=>{await service.logout?.();setSession(null);setSelected('');setPage('readings');};
+  const refresh=()=>{void reload();setRefreshVersion(version=>version+1);setNow(Date.now());};
+  const toggleLanguage=()=>setLang(value=>value==='zh'?'en':'zh');
+  const toggleTheme=()=>setTheme(value=>value==='light'?'dark':'light');
+  const openPatient=(id:string)=>{setSelected(id);setPage('readings');};
   const context={lang,t,service,now,refreshVersion};
-  return <UIContext.Provider value={context}><a className="skip" href="#main">{t('跳到主内容','Skip to content')}</a>{!session?<Login onSignIn={signedIn} language={()=>setLang(lang==='zh'?'en':'zh')} theme={()=>setTheme(theme==='light'?'dark':'light')}/>:<div className={`desktop ${session.mode}`}>
-    <aside className="sidebar"><div className="brand"><span className="brand-icon"><Icon name="heart" size={25}/></span><div>CareLink<small>{t('安护 · 照护空间','Care workspace')}</small></div></div><span className="workspace-name">{session.mode.toUpperCase()} · {t('健康监测','HEALTH MONITORING')}</span><nav aria-label={t('主导航','Main navigation')}>{([['home',session.mode==='pro'?t('患者总览','Patients'):t('健康小站','Health'),'patients'],['alerts',t('告警与提醒','Alerts'),'alert'],...(session.mode==='pro'?[['lcd',t('设备小屏','Device display'),'lcd']]:[]),...(session.mode==='pro'&&service.mode==='mock'?[['rules',t('演示规则','Demo rules'),'settings']]:[])] as [Page,string,string][]).map(([p,label,icon])=><button key={p} className={page===p||p==='home'&&page==='patient'?'active':''} aria-current={page===p?'page':undefined} onClick={()=>navigate(p)}><Icon name={icon}/>{label}</button>)}</nav><div className="sidebar-bottom"><div className="privacy-card"><Icon name="shield"/><small>{service.mode==='mock'?t('所有档案均为虚构。','All profiles are fictional.'):t('角色与患者范围来自后端会话。','Role and scope come from the backend session.')}</small></div>{service.mode==='mock'&&<button className="sidebar-control" onClick={async()=>{signedIn(await service.getSession(session.mode==='pro'?'basic':'pro'));}}>{session.mode==='pro'?t('体验 Basic 模式','Try Basic mode'):t('体验 Pro 模式','Try Pro mode')}<Icon name="arrow" size={16}/></button>}<button className="sidebar-control" onClick={signOut}><Icon name="logout" size={16}/>{t('退出','Sign out')}</button></div></aside>
-    <div className="workspace"><header className="topbar"><div className="breadcrumbs">CareLink <span>/</span> {page==='patient'?t('患者详情','Patient details'):session.mode==='basic'?t('家属空间','Family space'):t('照护工作台','Care workspace')}</div><div className="top-actions"><span className={`source-chip ${service.mode}`}>{service.mode==='mock'?'DEMO':'API'}</span><button className="button quiet" onClick={()=>setLang(lang==='zh'?'en':'zh')}>{lang==='zh'?'English':'中文'}</button><button className="icon-button" aria-label={theme==='light'?t('切换深色','Switch to dark'):t('切换浅色','Switch to light')} onClick={()=>setTheme(theme==='light'?'dark':'light')}><Icon name={theme==='light'?'moon':'sun'}/></button><span className="user-chip">{session.mode==='pro'?'DR':'B'}</span></div></header>
-    <main id="main" tabIndex={-1}><SourceNotice/>{page==='home'?<><ResourceNotice resource={patients} retry={refresh} emptyLabel={t('暂无授权患者','No authorized patients')}/>{session.mode==='pro'?<ProHome patients={authorized} open={id=>navigate('patient',id)} refresh={refresh}/>:<BasicHome patient={authorized[0]} updatedAt={patients.updatedAt} refresh={refresh}/>}</>:page==='patient'?<PatientDetail patientID={selected} allowed={session.patientIds} back={()=>navigate('home')} openAlerts={()=>navigate('alerts')}/>:page==='alerts'?<AlertsPage session={session} patients={authorized} openPatient={id=>navigate('patient',id)}/>:page==='lcd'?<LCDPage patients={authorized}/>:<RulesPage onSave={refresh}/>}
-    <footer>{t('CareLink · 健康监测演示系统','CareLink · Health monitoring demo')}<span>{service.mode==='mock'?t('模拟数据 · 未连接设备或 AI','Mock data · No live sensors or AI'):t('API 记录 · 采集时间及来源以返回值为准','API records · Sample time and provenance follow the response')}</span></footer></main>
-    </div>{service.mode==='mock'&&<button className="demo-fab" onClick={()=>setControls(true)}><Icon name="settings"/>{t('演示场景','Demo scenarios')}</button>}{controls&&service.mode==='mock'&&<DemoControls patients={authorized} selected={selected} select={setSelected} paused={paused} pause={setPaused} failure={demoFailure} fail={v=>{service.setNetworkFailure?.(v);setDemoFailure(v);}} close={()=>setControls(false)} changed={refresh}/>}</div>}</UIContext.Provider>;
+
+  if(!session)return <UIContext.Provider value={context}><Login onSignIn={signedIn} language={toggleLanguage} theme={toggleTheme}/></UIContext.Provider>;
+
+  const navigation:Array<[Page,string,string,string]>=[
+    ['readings','读数','Readings','heart'],
+    ['history','历史记录','History','patients'],
+    ['charts','图表','Charts','lcd'],
+    ['classifications','分类与置信度','Classifications','shield'],
+    ['alerts','告警历史','Alert history','alert'],
+    ['settings','设置','Settings','settings'],
+  ];
+  const shared={patients:authorized,selectedId:selected,select:setSelected,session};
+  const content=page==='readings'?<ReadingsPage {...shared}/>
+    :page==='history'?<HistoryPage {...shared}/>
+    :page==='charts'?<ChartsPage {...shared}/>
+    :page==='classifications'?<ClassificationsPage {...shared}/>
+    :page==='alerts'?<AlertsPage session={session} patients={authorized} openPatient={openPatient}/>
+    :<SettingsPage session={session} language={toggleLanguage} theme={toggleTheme} currentTheme={theme}/>;
+
+  return <UIContext.Provider value={context}>
+    <a className="skip" href="#main">{t('跳到主内容','Skip to content')}</a>
+    <div className={`desktop ${session.mode}`}>
+      <aside className="sidebar">
+        <div className="brand"><span className="brand-icon"><Icon name="heart" size={25}/></span><div>CareLink<small>{t('安护健康监测','Health monitoring')}</small></div></div>
+        <span className="workspace-name">{session.role==='clinician'?t('护士工作台','NURSE WORKSPACE'):t('病人视图','PATIENT VIEW')}</span>
+        <nav aria-label={t('主导航','Main navigation')}>{navigation.map(([key,zh,en,icon])=><button key={key} className={page===key?'active':''} aria-current={page===key?'page':undefined} onClick={()=>setPage(key)}><Icon name={icon}/>{t(zh,en)}</button>)}</nav>
+        <div className="sidebar-bottom">
+          <div className="privacy-card"><Icon name="shield"/><small>{session.role==='clinician'?t('护士可查看患者数据并确认告警。','Nurse access: view patient data and acknowledge alerts.'):t('病人账号只可查看自己的数据。','Patient access: own data only.')}</small></div>
+          <button className="sidebar-control" onClick={signOut}><Icon name="logout" size={16}/>{t('退出登录','Sign out')}</button>
+        </div>
+      </aside>
+      <div className="workspace">
+        <header className="topbar"><div className="breadcrumbs">CareLink <span>/</span> {t(navigation.find(item=>item[0]===page)?.[1]??'',navigation.find(item=>item[0]===page)?.[2]??'')}</div><div className="top-actions"><span className={`source-chip ${service.mode}`}>{service.mode==='mock'?'DEMO':'LIVE API'}</span><button className="button quiet" onClick={refresh}><Icon name="refresh" size={16}/>{t('刷新','Refresh')}</button><button className="button quiet" onClick={toggleLanguage}>{lang==='zh'?'English':'中文'}</button><button className="icon-button" aria-label={theme==='light'?t('切换深色','Switch to dark'):t('切换浅色','Switch to light')} onClick={toggleTheme}><Icon name={theme==='light'?'moon':'sun'}/></button><span className="user-chip" title={session.userId}>{session.role==='clinician'?'N':'P'}</span></div></header>
+        <main id="main" tabIndex={-1}><SourceNotice/><ResourceNotice resource={patients} retry={refresh} emptyLabel={t('暂无授权患者','No authorized patients')}/>{content}<footer>CareLink · {t('健康监测课程项目','Health monitoring coursework')}<span>{t('心率 · 体温 · 跌倒','Heart rate · Temperature · Fall')}</span></footer></main>
+      </div>
+    </div>
+  </UIContext.Provider>;
 }
-function Login({onSignIn,language,theme}:{onSignIn:(s:Session)=>void;language:()=>void;theme:()=>void}){
-  const {service,t,lang}=useUI();const [showPassword,setShowPassword]=useState(false);const [mode,setMode]=useState<AppMode>('pro'),[username,setUsername]=useState('demo@carelink.example'),[password,setPassword]=useState('demo1234'),[error,setError]=useState<'username'|'password'|'rejected'|'request'|null>(null),[busy,setBusy]=useState(false),[detail,setDetail]=useState('');
-  const signIn=async(e:React.FormEvent)=>{e.preventDefault();setError(null);if(service.mode==='mock'){if(!username.trim()){setError('username');return;}if(!password){setError('password');return;}if(password!=='demo1234'){setError('rejected');return;}}setBusy(true);try{onSignIn(await service.getSession(mode));}catch(e){setError('request');setDetail(e instanceof Error?e.message:'Request failed');}finally{setBusy(false);}};
-  const errorText=error===null?'':({username:t('请输入邮箱或用户名。','Enter an email or username.'),password:t('请输入演示密码。','Enter the demo password.'),rejected:t('登录失败（模拟），演示密码为 demo1234。','Sign-in failed (simulated). Demo password: demo1234.'),request:t('无法读取已认证会话，请确认接口与登录状态。','Unable to read authenticated session. Check API and sign-in status.')})[error];
-  return <div className="login-screen"><div className="login-controls"><button className="button" onClick={language}>{lang==='zh'?'English':'中文'}</button><button className="icon-button" onClick={theme} aria-label={t('切换外观','Switch appearance')}><Icon name="sun"/></button></div><div className="login-window"><section className="login-story"><div className="brand"><span className="brand-icon"><Icon name="heart" size={26}/></span><div>CareLink<small>{t('安护','Keep care connected')}</small></div></div><span className="eyebrow">CARE THAT STAYS CONNECTED</span><h1>{t('每一次关注，\n都让安心更近一步。','Care that brings\npeace of mind closer.')}</h1><p>{t('让专业照护与家人的牵挂，时刻相伴。','A shared space for professional care and family connection.')}</p><div className="story-art"><span className="care-orbit"><Icon name="heart" size={60}/></span><svg className="care-wave" viewBox="0 0 400 100" aria-hidden="true"><path d="M0 52H95L120 52L139 30L157 77L178 15L203 63L220 52H400"/></svg><span>{t('安心，来自彼此连接','Connected by care')}</span></div><SourceNotice/></section><section className="login-form-area"><div className="window-dots" aria-hidden="true"><i/><i/><i/></div><span className="eyebrow">{service.mode==='mock'?'UI DEMO · MOCK DATA':'API · AUTHENTICATED SESSION'}</span><h2>{t('把关心，连接起来','Keep care connected')}</h2><p className="muted">{service.mode==='mock'?t('选择你的视角，体验 CareLink。','Choose your perspective and explore CareLink.'):t('使用后端已建立的安全会话。','Use a session already authenticated by your backend.')}</p><form onSubmit={signIn} noValidate>{service.mode==='mock'?<><div className="role-selector">{(['pro','basic'] as const).map(m=><button type="button" key={m} className={m===mode?'selected':''} onClick={()=>setMode(m)}><Icon name={m==='pro'?'patients':'heart'}/><strong>{m==='pro'?'Pro':'Basic'}</strong><small>{m==='pro'?t('医护人员','Clinician'):t('患者 / 家属','Patient / family')}</small></button>)}</div><label htmlFor="login-user">{t('邮箱或用户名','Email or username')}</label><input id="login-user" value={username} onChange={e=>setUsername(e.target.value)} autoComplete="off" aria-invalid={error==='username'}/><label htmlFor="login-password">{t('密码','Password')}</label><div className="password-field"><input id="login-password" type={showPassword?"text":"password"} value={password} onChange={e=>setPassword(e.target.value)} autoComplete="off" aria-invalid={error==='password'||error==='rejected'}/><button type="button" onClick={()=>setShowPassword(!showPassword)} aria-pressed={showPassword}>{showPassword?t("隐藏","Hide"):t("显示","Show")}</button></div><p className="caption">{t('预填虚构账号。密码 demo1234；请勿输入真实凭据。','Fictional account prefilled. Password: demo1234. Do not enter real credentials.')}</p></>:<p className="callout">{t('此界面不发送账号密码。后端会话决定角色与授权患者；认证端点待组员确认。','This screen does not send credentials. Backend session determines role and patients; authentication endpoints remain to be confirmed.')}</p>}{error&&<div className="form-error" role="alert">{errorText}{error==='request'&&<details><summary>{t('错误详情','Error details')}</summary><code>{detail}</code></details>}</div>}<button className="button primary full" disabled={busy}>{busy?t('正在连接…','Connecting…'):service.mode==='mock'?t('登录演示','Sign in to demo'):t('读取已认证会话','Load authenticated session')}<Icon name="arrow"/></button></form><small className="caption">{service.mode==='mock'?t('演示登录不验证真实身份。所有数据均为虚构。','Demo sign-in does not verify identity. All data is fictional.'):t('接口尚需与组员联调，请勿将配置成功当作接入完成。','API integration remains to be verified with your team.')}</small></section></div></div>;
-}
-function ProHome({patients,open,refresh}:{patients:Patient[];open:(id:string)=>void;refresh:()=>void}){
-  const {service,lang,now,t}=useUI();const [query,setQuery]=useState(''),[filter,setFilter]=useState<Level|'all'>('all'),[view,setView]=useState<'cards'|'table'>('cards');
-  const level=(p:Patient)=>status(p.reading,service.mode,service.rules,lang,now).level;const rank={red:0,yellow:1,unknown:2,green:3};
-  const priority=patients.filter(p=>level(p)==='red').slice(0,2);
-  const list=patients.filter(p=>(filter==='all'||level(p)===filter)&&`${patientName(p,lang,service.mode)} ${p.name} ${p.bed} ${p.id}`.toLowerCase().includes(query.toLowerCase())).sort((a,b)=>rank[level(a)]-rank[level(b)]);
-  return <><div className="page-heading"><div><span className="eyebrow">PATIENT MONITORING · PRO</span><h1>{t('患者总览','Patients')}<span className="count-pill">{patients.length}</span></h1><p>{t('每一份数据背后，都有一位需要被关心的人。','Behind every reading is someone who needs care.')}</p></div><button className="button" onClick={refresh}><Icon name="refresh"/>{t('刷新数据','Refresh')}</button></div><div className="summary-grid" aria-label={t("按状态筛选","Filter by status")}>{(['red','yellow','green'] as Level[]).map(l=><button key={l} onClick={()=>setFilter(l)} aria-pressed={filter===l} className={`summary-card ${l}`}><span className="summary-icon"><Icon name={l==='green'?'shield':'alert'} size={27}/></span><div><span>{levelName(l,lang)}</span><strong>{patients.filter(p=>level(p)===l).length}<small>{t('位','patients')}</small></strong><small>{l==='red'?t('跌倒或严重异常 · 待核实','Fall or severe alert · Review required'):l==='yellow'?t('轻度异常 · 需要关注','Mild alert · Needs attention'):t('未触发已配置规则','No configured rule triggered')}</small></div><span className="summary-arrow">↗</span></button>)}</div>{priority.length>0&&<section className="priority-panel"><div className="priority-intro"><span className="priority-symbol"><Icon name="alert" size={22}/></span><div><h2>{t('优先关注','Needs your attention')}</h2><p>{t('以下事件需要人工核实','These events need human review')}</p></div></div><div className="priority-items">{priority.map(p=><button key={p.id} onClick={()=>open(p.id)} aria-label={`${t('优先查看','Review')} ${patientName(p,lang,service.mode)}`}><Avatar patient={p}/><div><strong>{patientName(p,lang,service.mode)}</strong><span>{status(p.reading,service.mode,service.rules,lang,now).reasons[0]}</span></div><Icon name="arrow" size={17}/></button>)}</div></section>}<div className="section-heading"><h2>{t('全部患者','All patients')}</h2><span className="caption">{patients.filter(p=>level(p)==='unknown').length} {t('位数据待确认','with unverified data')}</span></div><div className="toolbar"><label className="search"><Icon name="search"/><input aria-label={t('搜索患者','Search patients')} placeholder={t('搜索姓名、床位或编号','Search name, bed or ID')} value={query} onChange={e=>setQuery(e.target.value)}/></label><div className="filter-tabs">{(['all','red','yellow','green','unknown'] as const).map(l=><button key={l} aria-pressed={filter===l} className={filter===l?'selected':''} onClick={()=>setFilter(l)}>{l==='all'?t('全部','All'):levelName(l,lang)}</button>)}</div><div className="segmented compact"><button className={view==='cards'?'selected':''} onClick={()=>setView('cards')}>{t('卡片','Cards')}</button><button className={view==='table'?'selected':''} onClick={()=>setView('table')}>{t('列表','List')}</button></div></div>{!list.length?<div className="empty"><h3>{t('没有匹配的患者','No matching patients')}</h3><button className="button" onClick={()=>{setQuery('');setFilter('all');}}>{t('清除筛选','Clear filters')}</button></div>:view==='cards'?<div className="patient-grid">{list.map(p=><button className="patient-card" key={p.id} onClick={()=>open(p.id)} aria-label={`${t('查看','Open')} ${patientName(p,lang,service.mode)}`}><div className="patient-heading"><Avatar patient={p}/><div><h3>{patientName(p,lang,service.mode)}</h3><span>{p.age} · {t(p.sex,p.sex==='女'?'Female':'Male')} <i>·</i> {p.bed}</span></div><Icon name="arrow" size={17}/></div><Badge level={level(p)}/><div className="mini-metrics">{metricKeys.map(k=><div key={k}><small>{metricName(k,lang)}</small><strong>{value(p.reading,k,service.rules,lang,now).text}<em>{units[k]}</em></strong></div>)}</div><p className={`patient-reason ${level(p)}`}>{status(p.reading,service.mode,service.rules,lang,now).reasons[0]}</p><div className="patient-bottom"><small>{t('最近采集','Last sample')} {time(p.reading?.measuredAt,lang)}</small><span>{t('查看详情','Details')} →</span></div></button>)}</div>:<div className="panel table-wrap"><table><thead><tr><th>{t('患者','Patient')}</th><th>{t('床位','Bed')}</th><th>{t('状态','Status')}</th>{metricKeys.map(k=><th key={k}>{metricName(k,lang)}</th>)}<th>{t('最近采集','Last sample')}</th></tr></thead><tbody>{list.map(p=><tr key={p.id}><td><button className="table-name" onClick={()=>open(p.id)}><Avatar patient={p}/>{patientName(p,lang,service.mode)}</button></td><td>{p.bed}</td><td><Badge level={level(p)}/></td>{metricKeys.map(k=><td key={k}>{value(p.reading,k,service.rules,lang,now).text} {units[k]}</td>)}<td>{time(p.reading?.measuredAt,lang)}</td></tr>)}</tbody></table></div>}</>;
-}
-function BasicHome({patient,updatedAt,refresh}:{patient?:Patient;updatedAt:number|null;refresh:()=>void}){const {service,lang,t}=useUI();if(!patient)return null;return <div className="basic-page"><div className="page-heading"><div><span className="eyebrow">BASIC · {t('家人的健康小站','YOUR FAMILY’S HEALTH')}</span><h1>{t('今天，也在好好守护。','Here for your family, every day.')}</h1><p>{t('查看家人的最新状态，让关心多一份安心。','Keep an eye on the latest information, wherever care takes you.')}</p></div></div><div className="basic-profile"><Avatar patient={patient}/><div><h2>{patientName(patient,lang,service.mode)}</h2><small>{t('关联患者','Linked patient')} · {patient.age}</small></div><span className="family-connected"><Icon name="heart" size={16}/>{t("关心，一直在线","Connected by care")}</span></div><StatusPanel reading={patient.reading}/><MetricGrid reading={patient.reading} basic/><section className="update-panel"><span className="summary-icon"><Icon name="refresh"/></span><div><h3>{t('最近一次成功更新','Last successful update')}</h3><p>{time(updatedAt,lang)}</p><small>{t('采集时间','Sample time')}: {time(patient.reading?.measuredAt,lang)}</small></div><button className="button" onClick={refresh}>{t('刷新状态','Refresh status')}</button></section><p className="basic-note"><Icon name="unknown"/>{t('温度为表面测温，尚未校准为核心体温。设备提示需要人工核实。','Temperature is a surface reading, not calibrated core temperature. Device alerts need human review.')}</p></div>;}
-function DemoControls({patients,selected,select,paused,pause,failure,fail,close,changed}:{patients:Patient[];selected:string;select:(id:string)=>void;paused:boolean;pause:(v:boolean)=>void;failure:boolean;fail:(v:boolean)=>void;close:()=>void;changed:()=>void}){
-  const {service,t,lang}=useUI();const ref=useRef<HTMLDialogElement>(null);useEffect(()=>{const d=ref.current;const previous=document.activeElement as HTMLElement|null;d?.showModal();return()=>{d?.close();previous?.focus();};},[]);
-  const target=patients.find(p=>p.id===selected)?.id??patients[0]?.id??'';
-  const scenes:[Scenario,string,string][]=[['normal','数据平稳','Stable readings'],['mild','轻度异常','Mild deviation'],['severe','严重异常','Severe deviation'],['fall','跌倒警报','Fall alert'],['poor','测量不可靠','Unreliable measurement'],['unavailable','KY-005 / 暂不可用','KY-005 / unavailable'],['offline','设备离线','Device offline'],['stale','数据过期','Stale readings'],['noData','尚无数据','No data yet']];
-  return <dialog className="demo-dialog" ref={ref} onCancel={close}><div className="dialog-heading"><div><span className="eyebrow">MOCK DATA ONLY</span><h2>{t('演示控制台','Demo controls')}</h2></div><button className="icon-button" onClick={close} aria-label={t('关闭','Close')}>×</button></div><SourceNotice/><label htmlFor="scene-patient">{t('演示患者','Demo patient')}</label><select id="scene-patient" value={target} onChange={e=>select(e.target.value)}>{patients.map(p=><option key={p.id} value={p.id}>{patientName(p,lang,service.mode)}</option>)}</select><div className="scenario-grid">{scenes.map(([scene,zh,en])=><button className="button" disabled={!target} key={scene} onClick={()=>{service.setScenario?.(target,scene);changed();}}>{t(zh,en)}</button>)}</div><p className="callout">{t('KY-005 是红外发射模块，不能提供心率或血氧读数。','KY-005 is an IR transmitter; it cannot supply HR or SpO₂ readings.')}</p><label className="toggle"><input type="checkbox" checked={paused} onChange={e=>pause(e.target.checked)}/>{t('暂停自动模拟更新','Pause automatic mock updates')}</label><label className="toggle"><input type="checkbox" checked={failure} onChange={e=>fail(e.target.checked)}/>{t('模拟网络失败','Simulate network failure')}</label><button className="button full" onClick={()=>{service.reset?.();fail(false);changed();}}>{t('重置演示数据','Reset mock data')}</button></dialog>;
+
+function Login({onSignIn,language,theme}:{onSignIn:(session:Session)=>void;language:()=>void;theme:()=>void}){
+  const [username,setUsername]=useState('');
+  const [password,setPassword]=useState('');
+  const [showPassword,setShowPassword]=useState(false);
+  const [busy,setBusy]=useState(false);
+  const [error,setError]=useState('');
+  const {service,t,lang}=React.useContext(UIContext)!;
+  const signIn=async(event:React.FormEvent)=>{
+    event.preventDefault();setError('');
+    if(!username.trim()||!password){setError(t('请输入用户 ID 和密码。','Enter a user ID and password.'));return;}
+    setBusy(true);
+    try{onSignIn(await service.authenticate(username,password));}
+    catch(requestError){setError(requestError instanceof Error?requestError.message:t('登录失败','Sign-in failed'));}
+    finally{setBusy(false);}
+  };
+  return <div className="login-screen"><div className="login-controls"><button className="button" onClick={language}>{lang==='zh'?'English':'中文'}</button><button className="icon-button" onClick={theme} aria-label={t('切换外观','Switch appearance')}><Icon name="sun"/></button></div><div className="login-window"><section className="login-story"><div className="brand"><span className="brand-icon"><Icon name="heart" size={26}/></span><div>CareLink<small>{t('安护','Health monitoring')}</small></div></div><span className="eyebrow">HEART RATE · TEMPERATURE · FALL</span><h1>{t('一个账号，\n一个清晰的照护视角。','One account.\nThe right care view.')}</h1><p>{t('模型给出综合分类与置信度，规则模块说明异常来自哪里。','The model provides the overall label and confidence; rules explain which inputs are abnormal.')}</p><div className="story-art"><span className="care-orbit"><Icon name="heart" size={60}/></span><svg className="care-wave" viewBox="0 0 400 100" aria-hidden="true"><path d="M0 52H95L120 52L139 30L157 77L178 15L203 63L220 52H400"/></svg><span>{t('数据、算法与照护界面相连','Sensors, model and care UI connected')}</span></div></section><section className="login-form-area"><div className="window-dots" aria-hidden="true"><i/><i/><i/></div><span className="eyebrow">ROLE-BASED ACCESS</span><h2>{t('登录 CareLink','Sign in to CareLink')}</h2><p className="muted">{t('角色由用户 ID 决定，无需手动选择。','Your user ID determines the role automatically.')}</p><form onSubmit={signIn} noValidate><label htmlFor="login-user">{t('用户 ID','User ID')}</label><input id="login-user" value={username} onChange={event=>setUsername(event.target.value)} autoComplete="username"/><label htmlFor="login-password">{t('密码','Password')}</label><div className="password-field"><input id="login-password" type={showPassword?'text':'password'} value={password} onChange={event=>setPassword(event.target.value)} autoComplete="current-password"/><button type="button" onClick={()=>setShowPassword(value=>!value)}>{showPassword?t('隐藏','Hide'):t('显示','Show')}</button></div>{error&&<div className="form-error" role="alert">{error}</div>}<button className="button primary full" disabled={busy}>{busy?t('登录中…','Signing in…'):t('登录','Sign in')}<Icon name="arrow"/></button></form><div className="demo-accounts"><button type="button" onClick={()=>{setUsername('ttj');setPassword('041003');}}><Icon name="heart"/><span><strong>{t('病人账号','Patient')}</strong><code>ttj / 041003</code></span></button><button type="button" onClick={()=>{setUsername('wyn');setPassword('050403');}}><Icon name="patients"/><span><strong>{t('护士账号','Nurse')}</strong><code>wyn / 050403</code></span></button></div><small className="caption">{t('课程演示凭据；部署前必须改为安全认证和加密密码。','Coursework credentials only; replace with secure authentication and hashed passwords before deployment.')}</small></section></div></div>;
 }
