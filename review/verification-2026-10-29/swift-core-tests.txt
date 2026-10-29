@@ -1,0 +1,18 @@
+/Users/wangyinuo/Desktop/elder-sensors/carelink/ios/CoreTests/CoreChecks.swift:209:92: warning: backward matching of the unlabeled trailing closure is deprecated; label the argument with 'transport' to suppress this warning [#TrailingClosureMatching]
+207 |         check(trend.count == 2 && trend[0].value == 80, "Five-second median, excluding held values")
+208 |         check(trend[0].segment != trend[1].segment, "Missing intervals split native chart lines")
+209 |         let authenticatedAPI = try LiveApiService(configuration:configuration,rules:rules) { request in
+    |                                                                                            `- warning: backward matching of the unlabeled trailing closure is deprecated; label the argument with 'transport' to suppress this warning [#TrailingClosureMatching]
+210 |             if request.url!.path == "/api/login" {
+211 |                 let body = try JSONSerialization.jsonObject(with:request.httpBody!) as! [String:String]
+
+/Users/wangyinuo/Desktop/elder-sensors/carelink/ios/CareLink/LiveApiService.swift:62:5: note: 'init(configuration:rules:clock:transport:)' declared here
+ 60 |     private let clock: () -> Date
+ 61 |     private var session: Session?
+ 62 |     init(configuration: ServiceConfiguration, rules: DemoRules, clock: @escaping () -> Date = Date.init, transport: Transport? = nil) throws {
+    |     `- note: 'init(configuration:rules:clock:transport:)' declared here
+ 63 |         try configuration.validate()
+ 64 |         guard configuration.mode == .live else { throw ServiceError.configuration }
+
+[#TrailingClosureMatching]: <https://docs.swift.org/compiler/documentation/diagnostics/trailing-closure-matching>
+PASS: 127 Swift data/model/rule checks. iOS UI build is a separate Xcode check.

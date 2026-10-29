@@ -9,7 +9,7 @@ Before compiling:
 3. Start FastAPI on `0.0.0.0:8000`.
 
 Each Mac has its own LAN address. Run `npm start` in the repository root and
-use the printed `ESP32 upload URL`; do not copy another team member's IP. The
+set `SERVER_URL` to `http://<Mac-LAN-IP>:8000/sensor-data`; do not copy another team member's IP. No certificate, device signature or NTP setup is needed. The
 web page automatically requests the latest backend record once per second,
 but it can only change when the API Terminal is receiving repeated
 `POST /sensor-data` requests.

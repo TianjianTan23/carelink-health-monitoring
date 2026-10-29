@@ -10,7 +10,7 @@ export function validateConfig(input:unknown):AppConfig {
   if(!result.success)throw new DataError('configuration','Invalid carelink-config.json');
   const config=result.data;
   if(config.mode==='live'&&!config.apiConfirmed)throw new DataError('configuration','Proposed API is not confirmed. Confirm the contract and set apiConfirmed first.');
-  if(config.baseUrl){try{const url=new URL(config.baseUrl);if(!['https:','http:'].includes(url.protocol)||url.username||url.password||url.search||url.hash)throw new Error();}catch{throw new DataError('configuration','API baseUrl must be an http(s) origin/path without credentials, query or fragment.');}}
+  if(config.baseUrl){try{const url=new URL(config.baseUrl);if(!['http:','https:'].includes(url.protocol)||url.username||url.password||url.search||url.hash)throw new Error();}catch{throw new DataError('configuration','API baseUrl must be an HTTP(S) origin/path without credentials, query or fragment.');}}
   return config;
 }
 export async function loadConfig():Promise<AppConfig>{

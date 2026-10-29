@@ -1,0 +1,28 @@
+{
+  "selected_model": "logistic_regression",
+  "feature_names": [
+    "heart_rate",
+    "temperature",
+    "fall",
+    "heart_rate_low",
+    "heart_rate_high",
+    "temperature_high"
+  ],
+  "labels": [
+    "normal",
+    "warning",
+    "critical"
+  ],
+  "thresholds": {
+    "heart_rate_normal_min": 60.0,
+    "heart_rate_normal_max": 100.0,
+    "heart_rate_critical_min": 45.0,
+    "heart_rate_critical_max": 130.0,
+    "temperature_warning_high": 37.5,
+    "temperature_critical_low": 34.0,
+    "temperature_critical_high": 39.0
+  },
+  "trained_at": "2026-10-22T03:16:07.264424+00:00",
+  "training_rows": 60000,
+  "dataset_sha256": "2f3851063cfd86c6f3a0d7b6541717316fd134e896ddd6af9ef5aa18dd1651a8"
+}

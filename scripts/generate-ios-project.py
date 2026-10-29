@@ -38,7 +38,7 @@ for name in ['Debug','Release']:
   'SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"','SUPPORTS_MACCATALYST = NO',
   'SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO','TARGETED_DEVICE_FAMILY = 1',
   'SWIFT_VERSION = 5.0','SWIFT_STRICT_CONCURRENCY = minimal','CODE_SIGN_STYLE = Automatic',
-  'ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor','GENERATE_INFOPLIST_FILE = YES','INFOPLIST_KEY_CFBundleDisplayName = CareLink',
+  'ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor','GENERATE_INFOPLIST_FILE = YES','INFOPLIST_FILE = LocalNetwork.plist','INFOPLIST_KEY_CFBundleDisplayName = CareLink',
   'INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES','INFOPLIST_KEY_UILaunchScreen_Generation = YES',
   'INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait',
   'CURRENT_PROJECT_VERSION = 1','MARKETING_VERSION = 1.0',

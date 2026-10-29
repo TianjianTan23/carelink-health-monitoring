@@ -1,15 +1,9 @@
 # CareLink API
 
-This FastAPI service receives the existing ESP32 JSON at `POST /sensor-data`, stores readings and model outputs in SQLite, and exposes authenticated `/api/*` routes to the React app.
+FastAPI accepts HTTP JSON at `POST /sensor-data`, runs the packaged LR/CNN and fusion policy, stores readings in SQLite, and exposes authenticated `/api/*` routes to web and mobile clients. Sensor ingestion does not require device signatures or certificates.
 
-Local coursework account IDs and passwords are supplied separately and are not shown in the UI or documentation. Passwords are verified against salted PBKDF2-SHA256 hashes. Set `CARELINK_PATIENT_PASSWORD_HASH` and `CARELINK_NURSE_PASSWORD_HASH` to rotate them without editing source code.
+From the repository root run `npm start`, or `npm run setup:accounts` followed by `npm run start:api`. Existing local passwords are retained. Accounts use salted Argon2id hashes, opaque server sessions, CSRF and role/patient scope checks. HTTP cookies work on the local network; no TLS configuration is needed.
 
-Run from the repository root:
+The default database is `backend/carelink.db`; `CARELINK_DATABASE_PATH` overrides it. The hardware-free launcher uses a separate simulation database and labels simulated input. Missing or stale data is never silently classified as normal.
 
-```bash
-python3 -m venv .venv
-.venv/bin/pip install -r backend/requirements.txt
-.venv/bin/python -m uvicorn backend.app:app --host 0.0.0.0 --port 8000
-```
-
-The SQLite database is created at `backend/carelink.db`. Override it with `CARELINK_DATABASE_PATH`.
+See the root README and INTEGRATION.md for startup, model behavior and limitations.

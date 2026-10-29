@@ -1,3 +1,4 @@
+#include "heart_rate_processor.h"
 #include <Wire.h>
 #include <Adafruit_MPU6050.h>
 #include <Adafruit_Sensor.h>
@@ -8,6 +9,7 @@
 #include <HTTPClient.h>
 
 #include "secrets.h"
+#include "motion_stream.h"
 
 // Allow enough time for the Mac-hosted FastAPI classifier to respond.
 const uint32_t HTTP_TIMEOUT_MS = 15000;
@@ -42,25 +44,10 @@ const unsigned long FALL_LATCH_MS = 10000;
 const float HEART_RATE_LOW_BPM = 45.0f;
 const float HEART_RATE_HIGH_BPM = 130.0f;
 const unsigned long HEART_SAMPLE_INTERVAL_MS = 2;
-const unsigned long HEART_AVERAGE_WINDOW_MS = 20;
-const uint8_t HEART_MOVING_AVERAGE_SIZE = 4;
-const uint8_t HEART_RISE_THRESHOLD = 4;
-// Calibrated from this connected module. A short confirmation time allows a
-// light finger touch (observed near 2090) while rejecting isolated ADC spikes.
-const int HEART_FINGER_ON_RAW = 1950;
-const int HEART_FINGER_OFF_RAW = 1850;
-const unsigned long HEART_CONTACT_CONFIRM_MS = 250;
-const unsigned long HEART_CONTACT_SETTLE_MS = 600;
-const unsigned long HEART_MIN_BEAT_INTERVAL_MS = 300;   // 200 BPM maximum.
-const unsigned long HEART_MAX_BEAT_INTERVAL_MS = 2000;  // 30 BPM minimum.
-const unsigned long HEART_NO_BEAT_TIMEOUT_MS = 3000;
 const unsigned long HEART_ALARM_CONFIRM_MS = 3000;
-const float HEART_MIN_SIGNAL_AMPLITUDE = 4.0f;
-const float HEART_INTERVAL_TOLERANCE = 0.30f;
-const uint8_t HEART_REQUIRED_INTERVALS = 1;
 const unsigned long BUZZER_TOGGLE_MS = 250;
-const unsigned long SAMPLE_INTERVAL_MS = 10;
-const unsigned long PRINT_INTERVAL_MS = 200;
+const unsigned long SAMPLE_INTERVAL_MS = 5;
+const unsigned long PRINT_INTERVAL_MS = 1000;
 const unsigned long SEND_INTERVAL_MS = 1000;
 const unsigned long TEMPERATURE_INTERVAL_MS = 500;
 const unsigned long LCD_UPDATE_INTERVAL_MS = 500;
@@ -97,52 +84,32 @@ unsigned long lastLcdUpdate = 0;
 char lcdLine1[LCD_COLUMNS + 1] = "Starting...";
 char lcdLine2[LCD_COLUMNS + 1] = "Please wait";
 
-// Analog heart-rate state. The adaptive baseline supports common S/V/G pulse
-// sensor modules without adding another Arduino library.
-unsigned long lastHeartSample = 0;
-unsigned long heartAverageWindowStarted = 0;
-unsigned long lastBeat = 0;
-unsigned long heartContactStarted = 0;
-unsigned long heartContactCandidateStarted = 0;
-unsigned long abnormalHeartSince = 0;
+// Published snapshots are copied from the dedicated ADC task, never shared
+// while being updated. LCD/HTTP/temperature work cannot interrupt acquisition.
+HeartSnapshot heartSnapshot;
+QueueHandle_t heartQueue;
+float heartRateBpm = NAN, lastStableHeartRateBpm = NAN;
+float heartSignalAmplitude = 0;
+unsigned long lastStableHeartRateAt = 0, abnormalHeartSince = 0;
 unsigned long lastBuzzerToggle = 0;
-uint32_t heartSampleSum = 0;
-uint16_t heartSampleCount = 0;
 int heartSignalRaw = 0;
-float heartFiltered = 0.0f;
-float heartBaseline = 0.0f;
-float heartEnvelope = 0.0f;
-float heartPositiveEnvelope = 0.0f;
-float heartNegativeEnvelope = 0.0f;
-float heartSignalAmplitude = 0.0f;
-float heartRateBpm = NAN;
-float lastStableHeartRateBpm = NAN;
-unsigned long lastStableHeartRateAt = 0;
-bool heartInitialized = false;
-bool heartRateValid = false;
-bool hasLastStableHeartRate = false;
-bool heartRateAlarm = false;
-bool heartPulseArmed = true;
-bool heartFingerPresent = false;
 int8_t heartPulsePolarity = 1;
 uint8_t heartSignalQuality = 0;
-float heartMovingReadings[HEART_MOVING_AVERAGE_SIZE] = {0};
-float heartMovingSum = 0.0f;
-float previousDirectionalPulse = 0.0f;
-uint8_t heartMovingIndex = 0;
-uint8_t heartMovingCount = 0;
-uint8_t heartRiseCount = 0;
-bool heartCurveRising = false;
-bool buzzerOn = false;
-bool remoteBuzzerRequested = false;
+bool heartRateValid = false, hasLastStableHeartRate = false;
+bool heartRateAlarm = false, heartFingerPresent = false;
+bool buzzerOn = false, remoteBuzzerRequested = false;
 unsigned long lastServerResponse = 0;
 char serverClassification[16] = "unavailable";
-float serverConfidence = 0.0f;
-const char *heartRateError = "WAITING_FOR_PULSE";
-const uint8_t HEART_INTERVAL_COUNT = 5;
-unsigned long heartIntervals[HEART_INTERVAL_COUNT] = {0};
-uint8_t heartIntervalIndex = 0;
-uint8_t heartIntervalsValid = 0;
+float serverConfidence = 0;
+const char *heartRateError = "ACQUIRING";
+
+SemaphoreHandle_t wireMutex;
+portMUX_TYPE motionMux = portMUX_INITIALIZER_UNLOCKED;
+MotionSample motionRing[MOTION_CAPACITY];
+MotionSample motionSnapshot[MOTION_CAPACITY];  // Used only by the main loop.
+uint16_t motionWrite = 0, motionCount = 0;
+uint32_t previousMotionTime = 0;
+QueueHandle_t uploadQueue, replyQueue;
 
 String serverUrl() {
   return String(SERVER_URL);
@@ -239,10 +206,16 @@ bool readMLXTemperature(uint8_t reg, float &temperatureC) {
 }
 
 void updateMLX() {
+  if (xSemaphoreTake(wireMutex, pdMS_TO_TICKS(10)) != pdTRUE) {
+    mlxValid = false;
+    mlxError = "I2C_BUSY";
+    return;
+  }
   mlxError = "OK";
   bool ambientOK = readMLXTemperature(0x06, ambientC);
   bool objectOK = readMLXTemperature(0x07, objectC);
   mlxValid = ambientOK && objectOK;
+  xSemaphoreGive(wireMutex);
 }
 
 // ---------- Bare 16-pin LCD1602A, 4-bit parallel mode ----------
@@ -323,6 +296,9 @@ void initLCD() {
 
 void updateLCD(unsigned long now) {
   if (!lcdReady || now - lastLcdUpdate < LCD_UPDATE_INTERVAL_MS) return;
+  portENTER_CRITICAL(&motionMux);
+  bool fallDetected = ::fallDetected;
+  portEXIT_CRITICAL(&motionMux);
   lastLcdUpdate = now;
   char nextLine1[LCD_COLUMNS + 1] = {0};
   char nextLine2[LCD_COLUMNS + 1] = {0};
@@ -370,29 +346,30 @@ void updateLCD(unsigned long now) {
 }
 
 // ---------- MPU6050 ----------
-bool readMPUAcceleration() {
+bool readMPUMotion(MotionSample &sample, const char *&error) {
   Wire.beginTransmission(mpuAddress);
   Wire.write((uint8_t)0x3B);
   if (Wire.endTransmission(false) != 0) {
-    mpuError = "NO_ACK";
+    error = "NO_ACK";
     return false;
   }
-  if (Wire.requestFrom(mpuAddress, (uint8_t)6, (uint8_t)true) != 6) {
+  // Burst read: acceleration XYZ, temperature, angular velocity XYZ.
+  if (Wire.requestFrom(mpuAddress, (uint8_t)14, (uint8_t)true) != 14) {
     while (Wire.available()) Wire.read();
-    mpuError = "INCOMPLETE_DATA";
+    error = "INCOMPLETE_DATA";
     return false;
   }
-  int16_t raw[3];
-  for (int i = 0; i < 3; ++i) {
-    uint8_t high = Wire.read();
-    uint8_t low = Wire.read();
+  int16_t raw[7];
+  for (int i = 0; i < 7; ++i) {
+    uint8_t high = Wire.read(), low = Wire.read();
     raw[i] = (int16_t)(((uint16_t)high << 8) | low);
   }
-  axG = raw[0] / 4096.0f;
-  ayG = raw[1] / 4096.0f;
-  azG = raw[2] / 4096.0f;
-  totalG = sqrtf(axG * axG + ayG * ayG + azG * azG);
-  mpuError = "OK";
+  sample.timestampMs = millis();
+  for (int i = 0; i < 3; ++i) {
+    sample.values[i] = raw[i] / 2048.0f;       // MPU6050 +/-16 g.
+    sample.values[i + 3] = raw[i + 4] / 16.4f; // MPU6050 +/-2000 deg/s.
+  }
+  error = "OK";
   return true;
 }
 
@@ -486,275 +463,42 @@ void updateFallDetector(unsigned long now) {
 }
 
 // ---------- Analog heart-rate sensor + buzzer ----------
-void clearHeartIntervals() {
-  for (uint8_t i = 0; i < HEART_INTERVAL_COUNT; ++i) {
-    heartIntervals[i] = 0;
-  }
-  heartIntervalIndex = 0;
-  heartIntervalsValid = 0;
-}
-
-void resetHeartWaveform() {
-  lastBeat = 0;
-  heartRateBpm = NAN;
-  heartRateValid = false;
-  heartRateAlarm = false;
-  abnormalHeartSince = 0;
-  heartFiltered = 0.0f;
-  heartBaseline = 0.0f;
-  heartEnvelope = 0.0f;
-  heartPositiveEnvelope = 0.0f;
-  heartNegativeEnvelope = 0.0f;
-  heartSignalAmplitude = 0.0f;
-  heartSignalQuality = 0;
-  heartInitialized = false;
-  heartPulsePolarity = 1;
-  previousDirectionalPulse = 0.0f;
-  heartMovingSum = 0.0f;
-  heartMovingIndex = 0;
-  heartMovingCount = 0;
-  heartRiseCount = 0;
-  heartCurveRising = false;
-  for (uint8_t i = 0; i < HEART_MOVING_AVERAGE_SIZE; ++i) {
-    heartMovingReadings[i] = 0.0f;
-  }
-  clearHeartIntervals();
-}
-
-float medianHeartInterval() {
-  if (heartIntervalsValid == 0) return 0.0f;
-  unsigned long sorted[HEART_INTERVAL_COUNT];
-  for (uint8_t i = 0; i < heartIntervalsValid; ++i) {
-    sorted[i] = heartIntervals[i];
-  }
-  for (uint8_t i = 1; i < heartIntervalsValid; ++i) {
-    unsigned long value = sorted[i];
-    int8_t j = i - 1;
-    while (j >= 0 && sorted[j] > value) {
-      sorted[j + 1] = sorted[j];
-      --j;
+void heartTask(void *) {
+  HeartRateProcessor processor;
+  TickType_t wake = xTaskGetTickCount();
+  const TickType_t period = pdMS_TO_TICKS(HEART_SAMPLE_INTERVAL_MS);
+  unsigned long publishedAt = 0;
+  for (;;) {
+    unsigned long now = millis();
+    processor.sample(analogRead(HEART_RATE_PIN), now);
+    if (now - publishedAt >= 20) {
+      HeartSnapshot snapshot = processor.snapshot(now);
+      xQueueOverwrite(heartQueue, &snapshot);
+      publishedAt = now;
     }
-    sorted[j + 1] = value;
+    if (xTaskGetTickCount() - wake >= period) wake = xTaskGetTickCount();
+    vTaskDelayUntil(&wake, period);
   }
-  uint8_t middle = heartIntervalsValid / 2;
-  if (heartIntervalsValid % 2 == 1) return sorted[middle];
-  return (sorted[middle - 1] + sorted[middle]) * 0.5f;
-}
-
-bool heartIntervalIsConsistent(unsigned long intervalMs) {
-  if (heartIntervalsValid == 0) return true;
-  float reference = medianHeartInterval();
-  float allowedDifference = fmaxf(100.0f, reference * HEART_INTERVAL_TOLERANCE);
-  return fabsf((float)intervalMs - reference) <= allowedDifference;
-}
-
-void addHeartInterval(unsigned long intervalMs) {
-  heartIntervals[heartIntervalIndex] = intervalMs;
-  heartIntervalIndex = (heartIntervalIndex + 1) % HEART_INTERVAL_COUNT;
-  if (heartIntervalsValid < HEART_INTERVAL_COUNT) ++heartIntervalsValid;
-
-  // The median rejects an occasional motion spike better than a plain average.
-  float stableInterval = medianHeartInterval();
-  heartRateBpm = 60000.0f / stableInterval;
-  // After contact settling, two detected peaks provide the first BPM. Later
-  // intervals continuously replace it with the rolling median.
-  heartRateValid = heartIntervalsValid >= HEART_REQUIRED_INTERVALS;
-  if (heartRateValid) {
-    lastStableHeartRateBpm = heartRateBpm;
-    lastStableHeartRateAt = millis();
-    hasLastStableHeartRate = true;
-  }
-  heartRateError = heartRateValid ? "OK" : "STABILIZING";
 }
 
 void updateHeartRate(unsigned long now) {
-  if (now - lastHeartSample < HEART_SAMPLE_INTERVAL_MS) return;
-  lastHeartSample = now;
-
-  // KY-039 reference processing: average every ADC sample collected during a
-  // 20 ms block. This rejects much of the 50 Hz interference from room lights.
-  int instantRaw = analogRead(HEART_RATE_PIN);
-  heartSignalRaw = instantRaw;
-  heartSampleSum += instantRaw;
-  ++heartSampleCount;
-  if (heartAverageWindowStarted == 0) heartAverageWindowStarted = now;
-  if (now - heartAverageWindowStarted < HEART_AVERAGE_WINDOW_MS) return;
-
-  float reader = heartSampleCount > 0
-                     ? (float)heartSampleSum / heartSampleCount
-                     : (float)instantRaw;
-  heartSignalRaw = (int)lroundf(reader);
-  heartSampleSum = 0;
-  heartSampleCount = 0;
-  heartAverageWindowStarted = now;
-
-  if (heartSignalRaw <= 5 || heartSignalRaw >= 4090) {
-    heartFingerPresent = false;
-    resetHeartWaveform();
-    heartRateError = "ADC_SATURATED: check S/V/G wiring";
-    return;
-  }
-
-  // Hysteresis prevents ordinary pulse variation from repeatedly changing the
-  // contact state. These thresholds match the observed connected module.
-  if (!heartFingerPresent && heartSignalRaw >= HEART_FINGER_ON_RAW) {
-    if (heartContactCandidateStarted == 0) {
-      heartContactCandidateStarted = now;
-    } else if (now - heartContactCandidateStarted >= HEART_CONTACT_CONFIRM_MS) {
-      heartFingerPresent = true;
-      heartContactStarted = now;
-      heartContactCandidateStarted = 0;
-      hasLastStableHeartRate = false;
-      lastStableHeartRateBpm = NAN;
-      lastStableHeartRateAt = 0;
-      resetHeartWaveform();
-      heartRateError = "FINGER_DETECTED: hold still";
-    }
-  } else if (!heartFingerPresent) {
-    heartContactCandidateStarted = 0;
-  } else if (heartFingerPresent && heartSignalRaw <= HEART_FINGER_OFF_RAW) {
-    heartFingerPresent = false;
-    heartContactStarted = 0;
-    heartContactCandidateStarted = 0;
-    hasLastStableHeartRate = false;
-    lastStableHeartRateBpm = NAN;
-    lastStableHeartRateAt = 0;
-    resetHeartWaveform();
-    heartRateError = "NO_FINGER: cover the optical sensor";
-  }
-
-  if (!heartFingerPresent) {
-    heartRateError = "NO_FINGER: cover the optical sensor";
-    return;
-  }
-  if (now - heartContactStarted < HEART_CONTACT_SETTLE_MS) {
-    heartRateError = "FINGER_DETECTED: hold still";
-    return;
-  }
-
-  // The reference method then uses a four-reading moving average, giving an
-  // 80 ms smoothed optical waveform without blocking the rest of the device.
-  heartMovingSum -= heartMovingReadings[heartMovingIndex];
-  heartMovingReadings[heartMovingIndex] = reader;
-  heartMovingSum += reader;
-  heartMovingIndex = (heartMovingIndex + 1) % HEART_MOVING_AVERAGE_SIZE;
-  if (heartMovingCount < HEART_MOVING_AVERAGE_SIZE) ++heartMovingCount;
-  heartFiltered = heartMovingSum / heartMovingCount;
-  if (!heartInitialized || heartMovingCount < HEART_MOVING_AVERAGE_SIZE) {
-    heartBaseline = heartFiltered;
-    heartInitialized = true;
-    heartRateError = "STABILIZING: filtering optical signal";
-    return;
-  }
-
-  // Remove the large constant optical level, leaving the small pulse wave.
-  heartBaseline = heartBaseline * 0.98f + heartFiltered * 0.02f;
-  float pulseSignal = heartFiltered - heartBaseline;
-  heartPositiveEnvelope =
-      fmaxf(fmaxf(pulseSignal, 0.0f), heartPositiveEnvelope * 0.98f);
-  heartNegativeEnvelope =
-      fmaxf(fmaxf(-pulseSignal, 0.0f), heartNegativeEnvelope * 0.98f);
-  heartEnvelope = fmaxf(heartPositiveEnvelope, heartNegativeEnvelope);
-
-  // Some S/V/G pulse modules produce upward peaks, while others produce
-  // downward peaks. Select the stronger side automatically.
-  float selectedEnvelope = heartPulsePolarity > 0
-                               ? heartPositiveEnvelope
-                               : heartNegativeEnvelope;
-  float oppositeEnvelope = heartPulsePolarity > 0
-                               ? heartNegativeEnvelope
-                               : heartPositiveEnvelope;
-  if (!heartRateValid && oppositeEnvelope > selectedEnvelope * 1.25f) {
-    heartPulsePolarity = -heartPulsePolarity;
-    selectedEnvelope = oppositeEnvelope;
-  }
-  heartSignalAmplitude = selectedEnvelope;
-  float quality = (heartSignalAmplitude - HEART_MIN_SIGNAL_AMPLITUDE) *
-                  2.5f + heartIntervalsValid * 15.0f;
-  heartSignalQuality = (uint8_t)constrain((int)lroundf(quality), 0, 100);
-
-  float directionalPulse = heartPulsePolarity > 0 ? pulseSignal : -pulseSignal;
-  float triggerLevel =
-      fmaxf(HEART_MIN_SIGNAL_AMPLITUDE, selectedEnvelope * 0.45f);
-
-  // Official-style curve detector: more than four consecutive rising 20 ms
-  // readings indicate the start of one heartbeat. The amplitude requirement
-  // prevents a slow finger-placement change from being counted as a beat.
-  if (directionalPulse > previousDirectionalPulse) {
-    if (heartRiseCount < 255) ++heartRiseCount;
-  } else {
-    heartCurveRising = false;
-    heartRiseCount = 0;
-  }
-  bool pulsePeak = !heartCurveRising &&
-                   heartRiseCount > HEART_RISE_THRESHOLD &&
-                   directionalPulse >= triggerLevel &&
-                   selectedEnvelope >= HEART_MIN_SIGNAL_AMPLITUDE;
-  if (pulsePeak) heartCurveRising = true;
-  previousDirectionalPulse = directionalPulse;
-
-  if (pulsePeak && now - lastBeat >= HEART_MIN_BEAT_INTERVAL_MS) {
-    unsigned long intervalMs = lastBeat == 0 ? 0 : now - lastBeat;
-    if (lastBeat == 0) {
-      lastBeat = now;
-      heartRateError = "STABILIZING: first pulse detected";
-    } else if (intervalMs >= HEART_MIN_BEAT_INTERVAL_MS &&
-               intervalMs <= HEART_MAX_BEAT_INTERVAL_MS) {
-      if (heartIntervalIsConsistent(intervalMs)) {
-        lastBeat = now;
-        addHeartInterval(intervalMs);
-      } else {
-        float reference = medianHeartInterval();
-        // Recover cleanly if exactly one beat was missed.
-        if (reference > 0.0f && intervalMs > reference * 1.70f &&
-            intervalMs < reference * 2.30f &&
-            heartIntervalIsConsistent(intervalMs / 2)) {
-          lastBeat = now;
-          addHeartInterval(intervalMs / 2);
-        }
-        // An early inconsistent peak is treated as movement/noise and ignored.
-        heartRateError = "STABILIZING: rejecting motion noise";
-      }
-    } else if (intervalMs > HEART_MAX_BEAT_INTERVAL_MS) {
-      lastBeat = now;
-      heartRateValid = false;
-      heartRateBpm = NAN;
-      heartRateError = "STABILIZING: pulse sequence restarted";
-      clearHeartIntervals();
-    }
-  }
-
-  if (lastBeat == 0 || now - lastBeat > HEART_NO_BEAT_TIMEOUT_MS) {
-    heartRateValid = false;
-    heartRateBpm = NAN;
-    heartRateError = heartSignalAmplitude < HEART_MIN_SIGNAL_AMPLITUDE
-                         ? "WEAK_SIGNAL: shield sensor from room light"
-                         : "SEARCHING: keep finger still for 2 beats";
-    heartRateAlarm = false;
-    abnormalHeartSince = 0;
-    if (lastBeat != 0 && now - lastBeat > HEART_NO_BEAT_TIMEOUT_MS * 2) {
-      lastBeat = 0;
-      clearHeartIntervals();
-    }
-    return;
-  }
-
-  if (!heartRateValid) {
-    heartRateError = heartIntervalsValid == 0
-                         ? "STABILIZING: first pulse detected"
-                         : "STABILIZING: measuring pulse intervals";
-  }
-
+  if (xQueueReceive(heartQueue, &heartSnapshot, 0) != pdTRUE) return;
+  heartRateBpm = heartSnapshot.bpm;
+  heartRateValid = heartSnapshot.valid;
+  lastStableHeartRateBpm = heartSnapshot.displayBpm;
+  hasLastStableHeartRate = isfinite(lastStableHeartRateBpm);
+  lastStableHeartRateAt = heartSnapshot.lastValidAt;
+  heartSignalRaw = heartSnapshot.raw;
+  heartSignalAmplitude = heartSnapshot.amplitude;
+  heartSignalQuality = heartSnapshot.quality;
+  heartFingerPresent = heartSnapshot.contact;
+  heartRateError = heartSnapshot.state;
   bool abnormal = heartRateValid &&
-                  (heartRateBpm < HEART_RATE_LOW_BPM ||
-                   heartRateBpm > HEART_RATE_HIGH_BPM);
+      (heartRateBpm < HEART_RATE_LOW_BPM || heartRateBpm > HEART_RATE_HIGH_BPM);
   if (abnormal) {
-    if (abnormalHeartSince == 0) abnormalHeartSince = now;
+    if (!abnormalHeartSince) abnormalHeartSince = now;
     heartRateAlarm = now - abnormalHeartSince >= HEART_ALARM_CONFIRM_MS;
-  } else {
-    abnormalHeartSince = 0;
-    heartRateAlarm = false;
-  }
+  } else { abnormalHeartSince = 0; heartRateAlarm = false; }
 }
 
 void updateBuzzer(unsigned long now) {
@@ -775,6 +519,46 @@ void updateBuzzer(unsigned long now) {
   }
 }
 
+// Sampling has its own task; HTTP, serial output and LCD updates cannot
+// deliberately pause the motion stream. Actual timestamps expose timing gaps.
+void motionTask(void *) {
+  TickType_t wake = xTaskGetTickCount();
+  const TickType_t period = pdMS_TO_TICKS(SAMPLE_INTERVAL_MS);
+  for (;;) {
+    MotionSample sample;
+    const char *error = "I2C_BUSY";
+    bool valid = false;
+    if (xSemaphoreTake(wireMutex, pdMS_TO_TICKS(2)) == pdTRUE) {
+      valid = readMPUMotion(sample, error);
+      xSemaphoreGive(wireMutex);
+    }
+    portENTER_CRITICAL(&motionMux);
+    mpuValid = valid;
+    mpuError = error;
+    if (valid) {
+      uint32_t now = sample.timestampMs;
+      if (now <= previousMotionTime || now - previousMotionTime > 15) {
+        motionCount = 0;
+        resetFallCandidate();
+      }
+      previousMotionTime = now;
+      axG = sample.values[0]; ayG = sample.values[1]; azG = sample.values[2];
+      totalG = sqrtf(axG * axG + ayG * ayG + azG * azG);
+      if (totalG > peakG) peakG = totalG;
+      updateFallDetector(now);
+      motionRing[motionWrite] = sample;
+      motionWrite = (motionWrite + 1) % MOTION_CAPACITY;
+      if (motionCount < MOTION_CAPACITY) ++motionCount;
+    } else {
+      motionCount = 0;
+      resetFallCandidate();
+    }
+    portEXIT_CRITICAL(&motionMux);
+    if (xTaskGetTickCount() - wake >= period) wake = xTaskGetTickCount();
+    vTaskDelayUntil(&wake, period);
+  }
+}
+
 // ---------- JSON ----------
 void setJSONReading(JsonDocument &data, const char *key, float value,
                     bool valid) {
@@ -786,6 +570,19 @@ void setJSONReading(JsonDocument &data, const char *key, float value,
 }
 
 String buildJSON() {
+  // Copy under a short lock, then serialize without blocking the sampler.
+  portENTER_CRITICAL(&motionMux);
+  uint16_t sampleCount = motionCount;
+  for (uint16_t i = 0; i < sampleCount; ++i) {
+    motionSnapshot[i] = motionRing[(motionWrite + MOTION_CAPACITY - sampleCount + i) % MOTION_CAPACITY];
+  }
+  bool mpuValid = ::mpuValid, fallDetected = ::fallDetected, alarmActive = ::alarmActive;
+  float axG = ::axG, ayG = ::ayG, azG = ::azG, totalG = ::totalG;
+  float peakG = ::peakG, fallImpactG = ::fallImpactG;
+  const char *mpuError = ::mpuError, *fallState = fallStateName();
+  ::peakG = 0.0f;
+  portEXIT_CRITICAL(&motionMux);
+
   JsonDocument data;
   data["device_id"] = DEVICE_ID;
   data["patient_id"] = PATIENT_ID;
@@ -803,7 +600,7 @@ String buildJSON() {
   data["mlx90614_error"] = mlxValid ? (const char *)nullptr : mlxError;
   data["alarm"] = mpuValid ? alarmActive : false;
   data["fall_detected"] = mpuValid ? fallDetected : false;
-  data["fall_state"] = mpuValid ? fallStateName() : "SENSOR_ERROR";
+  data["fall_state"] = mpuValid ? fallState : "SENSOR_ERROR";
   setJSONReading(data, "fall_impact_g", fallImpactG, mpuValid);
   if (!mpuValid) {
     data["alarm"] = nullptr;
@@ -818,6 +615,12 @@ String buildJSON() {
   } else {
     data["heart_rate_last_valid_age_ms"] = nullptr;
   }
+  data["heart_sample_count"] = heartSnapshot.sampleCount;
+  data["heart_sampling_gap_count"] = heartSnapshot.gapCount;
+  data["heart_sample_rate_hz"] = 500;
+  data["heart_rate_signal_state"] = heartSnapshot.state;
+  data["heart_filtered_signal"] = heartSnapshot.filtered;
+  data["heart_rate_beat_at_ms"] = heartSnapshot.lastValidAt;
   data["heart_signal_raw"] = heartSignalRaw;
   data["heart_signal_amplitude"] = roundf(heartSignalAmplitude * 10.0f) / 10.0f;
   data["heart_signal_quality"] = heartSignalQuality;
@@ -838,61 +641,60 @@ String buildJSON() {
   data["lcd_line_1"] = lcdLine1;
   data["lcd_line_2"] = lcdLine2;
 
+  if (mpuValid && sampleCount == MOTION_CAPACITY) {
+    JsonObject window = data["motion_window"].to<JsonObject>();
+    window["sample_rate_hz"] = 200;
+    JsonArray channels = window["channels"].to<JsonArray>();
+    const char *names[] = {"accel_x_g", "accel_y_g", "accel_z_g", "gyro_x_dps", "gyro_y_dps", "gyro_z_dps"};
+    for (const char *name : names) channels.add(name);
+    window["units"]["acceleration"] = "g";
+    window["units"]["angular_velocity"] = "deg/s";
+    JsonArray samples = window["samples"].to<JsonArray>();
+    JsonArray times = window["timestamps_ms"].to<JsonArray>();
+    for (uint16_t i = 0; i < sampleCount; ++i) {
+      times.add(motionSnapshot[i].timestampMs);
+      JsonArray row = samples.add<JsonArray>();
+      for (uint8_t channel = 0; channel < 6; ++channel) {
+        row.add(roundf(motionSnapshot[i].values[channel] * 10000.0f) / 10000.0f);
+      }
+    }
+  }
+
   String out;
   serializeJson(data, out);
   return out;
 }
 
 // ---------- HTTP POST ----------
-void sendJSON(const String &jsonMessage) {
-  if (WiFi.status() != WL_CONNECTED) {
-    remoteBuzzerRequested = false;
-    Serial.println("POST skipped: WiFi down");
-    return;
-  }
-
-  WiFiClient client;
-
-  HTTPClient http;
-  http.setTimeout(HTTP_TIMEOUT_MS);
-  String url = serverUrl();
-  if (!http.begin(client, url)) {
-    remoteBuzzerRequested = false;
-    Serial.println("POST failed: http.begin() error");
-    return;
-  }
-  http.addHeader("Content-Type", "application/json");
-
-  int code = http.POST(jsonMessage);
-  if (code > 0) {
-    Serial.printf("HTTP %d | ", code);
-    String response = http.getString();
-    if (response.length() > 0) Serial.println(response);
-    else Serial.println();
-    if (code >= 200 && code < 300 && response.length() > 0) {
-      JsonDocument responseData;
-      DeserializationError jsonError = deserializeJson(responseData, response);
-      if (!jsonError) {
-        const char *classification =
-            responseData["classification"] | "unavailable";
-        snprintf(serverClassification, sizeof(serverClassification), "%s",
-                 classification);
-        serverConfidence = responseData["confidence"] | 0.0f;
-        remoteBuzzerRequested = strcmp(classification, "warning") == 0 ||
-                                strcmp(classification, "critical") == 0;
-        lastServerResponse = millis();
-      } else {
-        remoteBuzzerRequested = false;
-        Serial.printf("Response JSON error: %s\n", jsonError.c_str());
+void networkTask(void *) {
+  for (;;) {
+    if (WiFi.status() != WL_CONNECTED) connectWiFi();
+    UploadJob job;
+    if (xQueueReceive(uploadQueue, &job, pdMS_TO_TICKS(500)) != pdTRUE) continue;
+    ServerReply reply = {};
+    reply.requestCreatedAt = job.createdAt;
+    if (WiFi.status() == WL_CONNECTED && millis() - job.createdAt < 1000) {
+      WiFiClient client;
+      HTTPClient http;
+      http.setTimeout(HTTP_TIMEOUT_MS);
+      if (serverUrl().startsWith("http://") && http.begin(client, serverUrl())) {
+        http.addHeader("Content-Type", "application/json");
+        int code = http.POST((uint8_t *)job.json, strlen(job.json));
+        if (code >= 200 && code < 300) {
+          JsonDocument response;
+          if (!deserializeJson(response, http.getString())) {
+            const char *level = response["classification"] | "unavailable";
+            snprintf(reply.classification, sizeof(reply.classification), "%s", level);
+            reply.confidence = response["confidence"] | 0.0f;
+            reply.ok = true;
+          }
+        }
+        http.end();
       }
-    } else {
-      remoteBuzzerRequested = false;
     }
-  } else {
-    remoteBuzzerRequested = false;
-    Serial.printf("POST failed: %s\n", http.errorToString(code).c_str());
+    free(job.json);
+    xQueueOverwrite(replyQueue, &reply);
   }
-  http.end();
 }
 
 // ---------- Setup ----------
@@ -904,11 +706,19 @@ void setup() {
   pinMode(HEART_RATE_PIN, INPUT);
   pinMode(BUZZER_PIN, OUTPUT);
   digitalWrite(BUZZER_PIN, LOW);
+  heartQueue = xQueueCreate(1, sizeof(HeartSnapshot));
+  configASSERT(heartQueue);
+  BaseType_t heartCreated = xTaskCreate(heartTask, "heart500Hz", 4096, nullptr, 4, nullptr);
+  configASSERT(heartCreated == pdPASS);
   initLCD();
 
   scanTargetWiFi();
   connectWiFi();
 
+  wireMutex = xSemaphoreCreateMutex();
+  uploadQueue = xQueueCreate(1, sizeof(UploadJob));
+  replyQueue = xQueueCreate(1, sizeof(ServerReply));
+  configASSERT(wireMutex && uploadQueue && replyQueue);
   Wire.begin(MPU_SDA, MPU_SCL);
   Wire.setClock(100000);
   Wire.setTimeOut(10);
@@ -920,11 +730,12 @@ void setup() {
   }
 
   if (mpuReady) {
-    mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
-    mpu.setGyroRange(MPU6050_RANGE_500_DEG);
+    mpu.setAccelerometerRange(MPU6050_RANGE_16_G);
+    mpu.setGyroRange(MPU6050_RANGE_2000_DEG);
     mpu.setFilterBandwidth(MPU6050_BAND_44_HZ);
-    mpu.setSampleRateDivisor(9);
-    mpuValid = readMPUAcceleration();
+    mpu.setSampleRateDivisor(4);
+    BaseType_t motionCreated = xTaskCreate(motionTask, "motion200Hz", 4096, nullptr, 3, nullptr);
+    configASSERT(motionCreated == pdPASS);
   } else {
     mpuError = "NOT_FOUND: check SDA=21, SCL=22 and power";
   }
@@ -933,6 +744,8 @@ void setup() {
   lastTemperatureRead = millis();
   lastLcdUpdate = millis() - LCD_UPDATE_INTERVAL_MS;
   updateLCD(millis());
+  BaseType_t networkCreated = xTaskCreate(networkTask, "sensorUpload", 16384, nullptr, 1, nullptr);
+  configASSERT(networkCreated == pdPASS);
 }
 
 // ---------- Loop ----------
@@ -941,22 +754,17 @@ void loop() {
 
   updateHeartRate(now);
 
-  static unsigned long lastWifiCheck = 0;
-  if (now - lastWifiCheck >= 5000) {
-    lastWifiCheck = now;
-    if (WiFi.status() != WL_CONNECTED) {
-      Serial.println("WiFi lost, reconnecting...");
-      WiFi.disconnect();
-      scanTargetWiFi();
-      connectWiFi();
+  ServerReply reply;
+  if (xQueueReceive(replyQueue, &reply, 0) == pdTRUE) {
+    if (reply.ok && now - reply.requestCreatedAt < SEND_INTERVAL_MS * 3) {
+      snprintf(serverClassification, sizeof(serverClassification), "%s", reply.classification);
+      serverConfidence = reply.confidence;
+      remoteBuzzerRequested = strcmp(serverClassification, "warning") == 0 ||
+                              strcmp(serverClassification, "critical") == 0;
+      lastServerResponse = reply.requestCreatedAt;
+    } else {
+      remoteBuzzerRequested = false;
     }
-  }
-
-  if (mpuReady && now - lastSample >= SAMPLE_INTERVAL_MS) {
-    lastSample = now;
-    mpuValid = readMPUAcceleration();
-    if (mpuValid && totalG > peakG) peakG = totalG;
-    updateFallDetector(now);
   }
 
   if (now - lastTemperatureRead >= TEMPERATURE_INTERVAL_MS) {
@@ -969,13 +777,16 @@ void loop() {
 
   if (now - lastPrint >= PRINT_INTERVAL_MS) {
     lastPrint = now;
-    Serial.println(buildJSON());
+    Serial.printf("Server: %s | score %.3f\n", serverClassification, serverConfidence);
   }
 
   if (now - lastSend >= SEND_INTERVAL_MS) {
     lastSend = now;
-    sendJSON(buildJSON());
-    peakG = 0.0f;
+    if (uxQueueSpacesAvailable(uploadQueue) > 0) {
+      String json = buildJSON();
+      UploadJob job = {strdup(json.c_str()), millis()};
+      if (job.json && xQueueSend(uploadQueue, &job, 0) != pdTRUE) free(job.json);
+    }
   }
 
   delay(1);

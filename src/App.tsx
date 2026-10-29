@@ -1,9 +1,9 @@
-import React,{useCallback,useEffect,useState} from 'react';
+import React,{useCallback,useEffect,useState,useRef} from 'react';
 import type {Language,Patient,Session} from './data/models';
 import type {DataService} from './data/service';
 import {UIContext} from './ui/context';
 import {Icon} from './ui/Icons';
-import {ResourceNotice,SourceNotice} from './ui/components';
+import {ResourceNotice,SourceNotice,PersistentStatus} from './ui/components';
 import {AlertsPage} from './ui/pages';
 import {ChartsPage,ClassificationsPage,HistoryPage,ReadingsPage,SettingsPage} from './ui/monitoring-pages';
 import {useResource} from './ui/useResource';
@@ -17,6 +17,7 @@ export function App({service}:{service:DataService}){
   const [lang,setLang]=useState<Language>(stored('carelink-v3-language','en')==='zh'?'zh':'en');
   const [theme,setTheme]=useState(stored('carelink-v3-theme','light')==='dark'?'dark':'light');
   const [session,setSession]=useState<Session|null>(null);
+  const sessionRevision=useRef(0);
   const [page,setPage]=useState<Page>('readings');
   const [selected,setSelected]=useState('');
   const [refreshVersion,setRefreshVersion]=useState(0);
@@ -34,13 +35,20 @@ export function App({service}:{service:DataService}){
 
   useEffect(()=>{
     if(!session)return;
-    const timer=window.setInterval(()=>{void reload();setRefreshVersion(version=>version+1);},1000);
+    const timer=window.setInterval(()=>{void reload();setRefreshVersion(Math.floor(Date.now()/5000));},1000);
     return()=>window.clearInterval(timer);
   },[session,reload]);
   useEffect(()=>{if(authorized.length&&!authorized.some(patient=>patient.id===selected))setSelected(authorized[0].id);},[authorized,selected]);
 
-  const signedIn=(next:Session)=>{setSession(next);setSelected(next.patientIds[0]??'');setPage('readings');setRefreshVersion(version=>version+1);};
-  const signOut=async()=>{await service.logout?.();setSession(null);setSelected('');setPage('readings');};
+  useEffect(()=>{
+    if(service.mode!=='live')return;
+    let active=true;const revision=sessionRevision.current;
+    service.getSession().then(existing=>{if(active&&revision===sessionRevision.current){setSession(existing);setSelected(existing.patientIds[0]??'');}}).catch(()=>{/* Sign-in form handles absent/expired sessions. */});
+    return()=>{active=false;};
+  },[service]);
+
+  const signedIn=(next:Session)=>{sessionRevision.current++;setSession(next);setSelected(next.patientIds[0]??'');setPage('readings');setRefreshVersion(version=>version+1);};
+  const signOut=async()=>{sessionRevision.current++;await service.logout?.();setSession(null);setSelected('');setPage('readings');};
   const refresh=()=>{void reload();setRefreshVersion(version=>version+1);setNow(Date.now());};
   const toggleLanguage=()=>setLang(value=>value==='zh'?'en':'zh');
   const toggleTheme=()=>setTheme(value=>value==='light'?'dark':'light');
@@ -78,8 +86,8 @@ export function App({service}:{service:DataService}){
         </div>
       </aside>
       <div className="workspace">
-        <header className="topbar"><div className="breadcrumbs">CareLink <span>/</span> {t(navigation.find(item=>item[0]===page)?.[1]??'',navigation.find(item=>item[0]===page)?.[2]??'')}</div><div className="top-actions"><span className={`source-chip ${service.mode}`}>{service.mode==='mock'?'DEMO':t('实时 API · 1秒','LIVE API · 1s')}</span><button className="button quiet" onClick={refresh}><Icon name="refresh" size={16}/>{t('刷新','Refresh')}</button><button className="button quiet" onClick={toggleLanguage}>{lang==='zh'?'English':'中文'}</button><button className="icon-button" aria-label={theme==='light'?t('切换深色','Switch to dark'):t('切换浅色','Switch to light')} onClick={toggleTheme}><Icon name={theme==='light'?'moon':'sun'}/></button><span className="user-chip" title={session.userId}>{session.role==='clinician'?'N':'P'}</span></div></header>
-        <main id="main" tabIndex={-1}><SourceNotice/><ResourceNotice resource={patients} retry={refresh} emptyLabel={t('暂无授权患者','No authorized patients')}/>{content}<footer>CareLink · {t('健康监测课程项目','Health monitoring coursework')}<span>{t('心率 · 体温 · 跌倒','Heart rate · Temperature · Fall')}</span></footer></main>
+        <header className="topbar"><div className="breadcrumbs">CareLink <span>/</span> {t(navigation.find(item=>item[0]===page)?.[1]??'',navigation.find(item=>item[0]===page)?.[2]??'')}</div><div className="top-actions"><span className={`source-chip ${service.mode}`}>{session.simulation?t('模拟输入 · HTTP','SIMULATED INPUT · HTTP'):service.mode==='mock'?'DEMO':t('实时 API · 1秒','LIVE API · 1s')}</span><button className="button quiet" onClick={refresh}><Icon name="refresh" size={16}/>{t('刷新','Refresh')}</button><button className="button quiet" onClick={toggleLanguage}>{lang==='zh'?'English':'中文'}</button><button className="icon-button" aria-label={theme==='light'?t('切换深色','Switch to dark'):t('切换浅色','Switch to light')} onClick={toggleTheme}><Icon name={theme==='light'?'moon':'sun'}/></button><span className="user-chip" title={session.userId}>{session.role==='clinician'?'N':'P'}</span></div></header>
+        <PersistentStatus reading={authorized.find(p=>p.id===selected)?.reading??null}/><main id="main" tabIndex={-1}><SourceNotice simulation={session.simulation}/><ResourceNotice resource={patients} retry={refresh} emptyLabel={t('暂无授权患者','No authorized patients')}/>{content}<footer>CareLink · {t('健康监测课程项目','Health monitoring coursework')}<span>{t('心率 · 体温 · 跌倒','Heart rate · Temperature · Fall')}</span></footer></main>
       </div>
     </div>
   </UIContext.Provider>;

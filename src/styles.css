@@ -190,8 +190,8 @@ main#main{padding:var(--space-16) var(--space-40) var(--space-40);max-width:1580
 .reading-meta dl>div,.settings-list>div{padding:10px 0;border-bottom:1px solid var(--line)}
 .chart-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
 .chart-card{min-width:0}.chart-card .section-heading strong{font-size:12px;color:var(--brand);white-space:nowrap}
-.history-chart{display:block;width:100%;min-height:260px;margin-top:10px;overflow:visible}
-.history-chart line{stroke:var(--line);stroke-dasharray:4 5}.history-chart polyline{fill:none;stroke:var(--brand);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}.history-chart circle{fill:var(--brand)}.history-chart text{fill:var(--muted);font-size:10px;font-family:inherit}
+.history-chart{display:block;width:100%;height:220px;min-height:220px;margin-top:10px;overflow:visible}
+.history-chart line{stroke:var(--line);stroke-dasharray:4 5}.history-chart polyline{fill:none;stroke:var(--brand);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}.history-chart circle{fill:var(--brand)}.history-chart text{fill:var(--muted);font-size:12px;font-family:inherit}
 .classification-list{display:grid;gap:18px}
 .classification-record-head{display:flex;justify-content:space-between;gap:24px;align-items:flex-start}
 .classification-record-head h2{margin:10px 0 0}.classification-record-head p{font-size:11px;color:var(--muted);margin-top:4px}
@@ -231,3 +231,12 @@ main#main{padding:var(--space-16) var(--space-40) var(--space-40);max-width:1580
 .login-form-area>.caption{display:flex;align-items:center;gap:7px}
 
 @media(max-width:760px){.status-panel.prominent-alert{padding:22px}.prominent-alert-heading{align-items:flex-start}.prominent-alert-icon{width:48px;height:48px;border-radius:14px}.prominent-alert .status-reasons p{font-size:16px}.classification-record{padding:22px}}
+
+/* Keep all three explicit state labels visible across navigation and scrolling. */
+.persistent-status{position:sticky;top:0;z-index:25;padding:12px 28px 8px;background:var(--surface,#fff);border-bottom:1px solid #bbc5c0;box-shadow:0 3px 12px #00000008}
+.status-current{display:flex;align-items:center;gap:14px;max-width:1100px;margin:auto;border:2px solid #b8c3bd;border-left:8px solid #62716a;border-radius:12px;padding:10px 16px;color:#080808;background:#f5f7f6;min-height:70px}
+.status-current>div{display:flex;flex-direction:column;gap:2px}.status-current strong{font-size:clamp(28px,3vw,36px);font-weight:900;line-height:1.1;color:#080808}.status-current span{font-size:12px;font-weight:700;color:#222}.status-current .status-current-name{margin-left:auto;font-size:18px}.status-current.green{border-left-color:#18724b;background:#ecf8f0}.status-current.yellow{border-left-color:#b77700;background:#fff7dd}.status-current.red{border-left-color:#bd233c;background:#fff0f1}
+.status-caption{max-width:1100px;margin:8px auto 0;font-weight:700;font-size:13px}
+.badge,.classification-pill{font-size:17px!important;font-weight:900!important;color:#111!important;background:#eef3f0!important;border:1px solid currentColor}
+.metric-number{font-size:clamp(40px,4vw,56px);font-weight:850}
+@media(max-width:700px){.persistent-status{padding:10px 12px 7px}.status-current{padding:10px 12px;gap:12px;min-height:66px}.status-current strong{font-size:28px}.status-current span{font-size:11px}.status-caption{font-size:12px}.classification-record-head{flex-wrap:wrap}.topbar{height:auto;min-height:64px;flex-wrap:wrap}}

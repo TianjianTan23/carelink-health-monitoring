@@ -4,7 +4,7 @@ const timestamp=z.string().datetime({offset:true});
 export const QualitySchema=z.enum(['good','poor','unavailable','unknown']);
 export const LevelSchema=z.enum(['red','yellow','green','unknown']);
 const source=z.enum(['mock','device','backend']);
-export const MetricSchema=z.object({value:z.number().finite().nullable(),quality:QualitySchema,available:z.boolean().optional()});
+export const MetricSchema=z.object({value:z.number().finite().nullable(),quality:QualitySchema,available:z.boolean().optional(),displayValue:z.number().finite().nullable().optional(),held:z.boolean().optional(),lastValidAt:timestamp.nullable().optional(),sampleId:z.string().optional(),signalState:z.string().optional(),signalQuality:z.number().nullable().optional(),sampleCount:z.number().nullable().optional(),gapCount:z.number().nullable().optional()});
 export const PredictionSchema=z.object({
   state:z.enum(['not_connected','pending','available','failed','unavailable']),
   id:z.string().nullable().optional(),patientId:z.string().nullable().optional(),
@@ -36,7 +36,7 @@ export const AlertSchema=z.object({
   if(a.status==='acknowledged'&&!a.acknowledgedAt)c.addIssue({code:'custom',message:'Acknowledged alert requires acknowledgedAt'});
   if(a.status==='resolved'&&(!a.resolvedAt||a.conditionActive))c.addIssue({code:'custom',message:'Resolved alert requires resolvedAt and inactive condition'});
 });
-export const SessionSchema=z.object({userId:z.string(),role:z.enum(['clinician','patient','family']),mode:z.enum(['pro','basic']),patientIds:z.array(z.string())}).superRefine((s,c)=>{
+export const SessionSchema=z.object({simulation:z.boolean().optional(),csrfToken:z.string().optional(),userId:z.string(),role:z.enum(['clinician','patient','family']),mode:z.enum(['pro','basic']),patientIds:z.array(z.string())}).superRefine((s,c)=>{
   if(s.mode==='pro'&&s.role!=='clinician')c.addIssue({code:'custom',message:'Pro requires clinician role'});
 });
 export type Patient=z.infer<typeof PatientSchema>;

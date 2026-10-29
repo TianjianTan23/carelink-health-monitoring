@@ -84,3 +84,22 @@ it('never displays account credentials and keeps the password masked',async()=>{
   await user.type(screen.getByLabelText('User ID'),'ttj');await user.type(screen.getByLabelText('Password'),'041003');
   await waitFor(()=>expect(screen.getByLabelText('Password')).toHaveAttribute('type','password'));
 });
+
+it('keeps only the current assessment visible on every signed-in page',async()=>{
+ const user=await loginAs('Patient');
+ for(const page of ['Readings','History','Charts','Classifications','Alert history','Settings']){
+  await user.click(screen.getByRole('button',{name:page}));
+  const strip=screen.getByRole('region',{name:'Current status, visible on every page'});
+  expect(strip.querySelectorAll('strong')).toHaveLength(1);
+  expect(strip.querySelector('strong')?.textContent).toMatch(/^(NORMAL|WARNING|CRITICAL|WAITING FOR DATA)$/);
+ }
+});
+
+it('labels signed-in hardware-free input without changing backend status display',async()=>{
+ const transport=vi.fn(async(input:RequestInfo|URL)=>new Response(JSON.stringify(String(input).endsWith('/api/session')?{...sessions.pro,simulation:true}:[])));
+ const service=new LiveApiService({...defaultConfig,mode:'live',apiConfirmed:true,baseUrl:'https://backend.example'},transport);
+ render(<App service={service}/>);
+ expect(await screen.findByText('Hardware-free test · Synthetic sensors · Real HTTP and AI backend')).toBeInTheDocument();
+ expect(screen.getByText('SIMULATED INPUT · HTTP')).toBeInTheDocument();
+ expect(screen.getByRole('region',{name:'Current status, visible on every page'})).toHaveTextContent('WAITING FOR DATA');
+});

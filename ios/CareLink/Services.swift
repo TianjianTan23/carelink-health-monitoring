@@ -8,6 +8,8 @@ enum Scenario: String, CaseIterable, Identifiable {
 protocol CareService {
     var rules: DemoRules { get }
     var mode: DataMode { get }
+    func authenticate(username: String, password: String) async throws -> Session
+    func logout() async
     func getPatient(id: String) async throws -> Patient?
     func getPredictions(patientID: String) async throws -> [Prediction]
     func getAlerts() async throws -> [Alert]
@@ -16,6 +18,10 @@ protocol CareService {
     func getPatients() async throws -> [Patient]
     func getHistory(patientID: String) async throws -> [Reading]
     func refresh() async throws -> [Patient]
+}
+extension CareService {
+    func authenticate(username: String, password: String) async throws -> Session { throw ServiceError.forbidden }
+    func logout() async {}
 }
 enum ServiceError: Error { case missingResource(String), configuration, invalidResponse, http(Int), forbidden, network }
 

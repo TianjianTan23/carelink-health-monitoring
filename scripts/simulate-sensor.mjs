@@ -1,3 +1,10 @@
+async function sendReading(url,payload){
+  const response=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),signal:AbortSignal.timeout(15000)});
+  if(!response.ok)throw new Error(`HTTP ${response.status}`);
+  return response.json();
+}
+const device='carelink-simulator';
+
 const options = Object.fromEntries(
   process.argv.slice(2).map(argument => {
     const [key, ...rest] = argument.replace(/^--/, '').split('=');
@@ -6,8 +13,12 @@ const options = Object.fromEntries(
 );
 
 const url = options.url || 'http://127.0.0.1:8000/sensor-data';
+const target=new URL(url);
+if(target.protocol!=='http:'||target.username||target.password||target.search||target.hash||target.pathname!=='/sensor-data')throw new Error('Use an HTTP /sensor-data URL without credentials or query.');
 const intervalMs = Number(options.interval || 1000);
 const fixedScenario = options.scenario || 'cycle';
+const maxSamples=options.count===undefined?Infinity:Number(options.count);
+if(!(maxSamples===Infinity||(Number.isInteger(maxSamples)&&maxSamples>0)))throw new Error('--count must be a positive integer');
 
 if (!Number.isFinite(intervalMs) || intervalMs < 250) {
   throw new Error('--interval must be at least 250 milliseconds');
@@ -45,10 +56,12 @@ process.on('SIGTERM', () => { stopped = true; });
 console.log(`Sending synthetic coursework readings to ${url}`);
 console.log('Press Ctrl+C to stop. This exercises the real FastAPI, model, SQLite, alerts, and live UI.');
 
-while (!stopped) {
+let failed=false;
+while (!stopped && sample<maxSamples) {
   const reading = readingFor(sample++);
   const payload = {
-    device_id: 'carelink-simulator',
+    device_id: device,
+    source: 'synthetic',
     heart_rate_bpm: Number(reading.heart_rate_bpm.toFixed(1)),
     object_temp_c: Number(reading.object_temp_c.toFixed(2)),
     fall_detected: reading.fall_detected,
@@ -57,15 +70,10 @@ while (!stopped) {
     accel_z_g: reading.fall_detected ? 2.8 : 1.0,
   };
   try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(payload),
-    });
-    const result = await response.json();
-    if (!response.ok) throw new Error(`HTTP ${response.status}: ${JSON.stringify(result)}`);
+    const result = await sendReading(url,payload);
     console.log(`${new Date().toLocaleTimeString()} ${reading.scenario.padEnd(8)} HR=${payload.heart_rate_bpm} TEMP=${payload.object_temp_c} FALL=${payload.fall_detected} -> ${result.label ?? 'unavailable'}`);
   } catch (error) {
+    failed=true;
     console.error(`Cannot reach CareLink API: ${error instanceof Error ? error.message : String(error)}`);
     console.error('Run npm start in another Terminal window and keep it open.');
   }
@@ -73,3 +81,5 @@ while (!stopped) {
 }
 
 console.log('Sensor simulator stopped.');
+
+if(Number.isFinite(maxSamples)&&failed)process.exitCode=1;

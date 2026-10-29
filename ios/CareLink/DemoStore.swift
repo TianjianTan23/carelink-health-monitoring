@@ -52,7 +52,12 @@ final class DemoStore: ObservableObject {
     @Published var alertFeedState: AlertFeedState = .live
     @Published var simulateConnectionFailure = false { didSet { mock?.simulateFailure = simulateConnectionFailure } }
     @Published private(set) var lastSuccessfulUpdate: Date?
-    @Published var appearance = "light"
+    @Published var appearance = UserDefaults.standard.string(forKey: "carelink-appearance") ?? "light" {
+        didSet { UserDefaults.standard.set(appearance, forKey: "carelink-appearance") }
+    }
+    private var refreshing = false
+    private var generation = 0
+    var serverURL: String { UserDefaults.standard.string(forKey: "carelink-server-url") ?? "http://127.0.0.1:8000" }
     var dataMode: DataMode { service?.mode ?? .mock }
     var configured: Bool { service != nil }
     var alerts: [Alert] {
@@ -78,8 +83,8 @@ final class DemoStore: ObservableObject {
         do { predictions[id] = try await service.getPredictions(patientID:id); predictionLoadStates[id] = predictions[id]?.isEmpty == true ? .empty : .ready; predictionErrorIDs.remove(id) }
         catch { predictionLoadStates[id] = .failed; predictionErrorIDs.insert(id) }
     }
-    private let service: CareService?
-    let mock: MockCareService?
+    private var service: CareService?
+    private(set) var mock: MockCareService?
 
     init() {
         language = AppLanguage(rawValue: UserDefaults.standard.string(forKey: "carelink-language") ?? "zh") ?? .zh
@@ -108,22 +113,43 @@ final class DemoStore: ObservableObject {
             lastSuccessfulUpdate = now; patientLoadState = loaded.isEmpty ? .empty : .ready; await loadAlerts()
         } catch { self.issue = .signIn; patientLoadState = .failed }
     }
-    func signOut() { session = nil; patients = []; histories = [:]; alertRecords = []; predictions = [:]; predictionErrorIDs = []; alertIssue = nil; patientLoadState = .idle; alertLoadState = .idle; historyLoadStates = [:]; predictionLoadStates = [:]; lastSuccessfulUpdate = nil; simulateConnectionFailure = false; alertFeedState = .live; issue = nil }
+    func authenticate(username: String, password: String, baseURL: String) async {
+        loading = true; defer { loading = false }
+        generation += 1
+        let expected = generation
+        do {
+            let selected = try CareServiceFactory.make(baseURL: baseURL.trimmingCharacters(in: .whitespacesAndNewlines))
+            let authorized = try await selected.authenticate(username: username, password: password)
+            let loaded = try await selected.refresh()
+            guard expected == generation else { return }
+            service = selected; mock = nil; session = authorized; patients = loaded
+            UserDefaults.standard.set(baseURL, forKey: "carelink-server-url")
+            histories = [:]; predictions = [:]; issue = nil; now = Date(); lastSuccessfulUpdate = now
+            patientLoadState = loaded.isEmpty ? .empty : .ready
+            await loadAlerts()
+        } catch { issue = .signIn; patientLoadState = .failed }
+    }
+    func signOut() { generation += 1; let previous = service; Task { await previous?.logout() }; session = nil; patients = []; histories = [:]; alertRecords = []; predictions = [:]; predictionErrorIDs = []; alertIssue = nil; patientLoadState = .idle; alertLoadState = .idle; historyLoadStates = [:]; predictionLoadStates = [:]; lastSuccessfulUpdate = nil; simulateConnectionFailure = false; alertFeedState = .live; issue = nil }
     func refresh() async {
-        guard let service = service, session != nil else { return }
+        guard let service = service, session != nil, !refreshing else { return }
+        refreshing = true; defer { refreshing = false }
+        let expected = generation
         if simulateConnectionFailure && dataMode == .mock {
             now = Date(); patientLoadState = .failed
             issue = .connection
             return
         }
-        patientLoadState = .loading
+        if patients.isEmpty { patientLoadState = .loading }
         do {
-            patients = try await service.refresh(); now = Date(); issue = nil; lastSuccessfulUpdate = now; patientLoadState = patients.isEmpty ? .empty : .ready; await loadAlerts()
-            for id in Array(histories.keys) where patient(id) != nil { histories[id] = try await service.getHistory(patientID: id) }
+            let refreshed = try await service.refresh()
+            guard expected == generation else { return }
+            patients = refreshed; now = Date(); issue = nil; lastSuccessfulUpdate = now; patientLoadState = patients.isEmpty ? .empty : .ready; await loadAlerts()
+            for id in Array(histories.keys) where patient(id) != nil { histories[id] = try await service.getHistory(patientID: id); historyLoadStates[id] = .ready }
+            for id in Array(predictions.keys) where patient(id) != nil { await loadPredictions(id) }
         } catch { self.issue = .refresh; patientLoadState = .failed }
     }
     func loadPatientDetail(_ id: String) async {
-        guard mode == .pro, patient(id) != nil, let service = service else { return }
+        guard patient(id) != nil, let service = service else { return }
         do {
             if let detail = try await service.getPatient(id:id), let index = patients.firstIndex(where: { $0.id == id }) { patients[index] = detail }
             else { patients.removeAll { $0.id == id }; issue = .detail }
@@ -155,9 +181,9 @@ final class DemoStore: ObservableObject {
     }
     func levelName(_ level: RiskLevel) -> String {
         switch level {
-        case .red: return t("优先查看", "Review urgently")
-        case .yellow: return t("需要关注", "Needs attention")
-        case .green: return dataMode == .mock ? t("未见演示异常", "No demo alerts") : t("后端未报告异常", "No backend-reported alerts")
+        case .red: return "CRITICAL"
+        case .yellow: return "WARNING"
+        case .green: return "NORMAL"
         case .unknown: return t("数据待确认", "Data unverified")
         }
     }
@@ -182,6 +208,13 @@ final class DemoStore: ObservableObject {
     }
     func qualityNote(_ reading: Reading?, key: MetricKey) -> String {
         guard let reading = reading else { return t("尚无数据", "No data yet") }
+        let current = key.metric(in: reading)
+        if key == .hr, (!fresh(reading) || !Monitoring.usable(current)),
+           let number = current.displayValue ?? current.value, number.isFinite,
+           now.timeIntervalSince(current.lastValidAt ?? reading.measuredAt) <= 30 {
+            let age = Int(max(0, now.timeIntervalSince(current.lastValidAt ?? reading.measuredAt)))
+            return t("上次有效值 · \(age)秒前 · 不参与分类", "Last valid value · \(age)s ago · Not a current measurement")
+        }
         guard fresh(reading) else { return reading.connected ? t("数据已过期", "Stale reading") : t("设备离线", "Device offline") }
         let metric = key.metric(in: reading)
         guard Monitoring.usable(metric) else { return metric.quality == .poor ? t("信号不稳，请重新采集", "Unreliable signal; collect a new sample") : t("暂不可用", "Unavailable") }
@@ -197,9 +230,6 @@ final class DemoStore: ObservableObject {
         case .unavailable: return t("KY-005 备用模式", "KY-005 fallback mode")
         case .offline: return t("设备离线", "Device offline")
         case .stale: return t("数据过期", "Stale readings")
-        case .backend(let text): return text
-        case .backendPending: return t("等待后端状态判断", "Awaiting backend assessment")
-        case .backendStale: return t("后端判断已过期", "Backend assessment is stale")
         case .noData: return t("尚无数据", "No data yet")
         }
     }

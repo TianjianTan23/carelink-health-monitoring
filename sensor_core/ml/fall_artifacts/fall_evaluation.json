@@ -1,0 +1,288 @@
+{
+  "created_at": "2026-10-22T05:23:49.637208+00:00",
+  "dataset": "/Users/wangyinuo/Desktop/dataset",
+  "method": {
+    "model": "1D convolutional neural network",
+    "channels": [
+      "accel_x_g",
+      "accel_y_g",
+      "accel_z_g",
+      "gyro_x_dps",
+      "gyro_y_dps",
+      "gyro_z_dps"
+    ],
+    "sample_rate_hz": 200,
+    "window_seconds": 2.0,
+    "window_samples": 400,
+    "fall_window": "impact-centred using maximum smoothed acceleration magnitude",
+    "split": "subject-independent",
+    "seed": 42
+  },
+  "audit": {
+    "recording_count": 4505,
+    "dropped_malformed_source_rows": 17,
+    "subjects": {
+      "train": [
+        "SA01",
+        "SA02",
+        "SA04",
+        "SA06",
+        "SA07",
+        "SA08",
+        "SA10",
+        "SA11",
+        "SA13",
+        "SA14",
+        "SA15",
+        "SA16",
+        "SA17",
+        "SA19",
+        "SA21",
+        "SA22",
+        "SE01",
+        "SE03",
+        "SE05",
+        "SE07",
+        "SE08",
+        "SE09",
+        "SE10",
+        "SE12",
+        "SE13",
+        "SE15"
+      ],
+      "validation": [
+        "SA03",
+        "SA09",
+        "SA18",
+        "SA23",
+        "SE02",
+        "SE14"
+      ],
+      "test": [
+        "SA05",
+        "SA12",
+        "SA20",
+        "SE04",
+        "SE06",
+        "SE11"
+      ]
+    },
+    "recordings": {
+      "train": {
+        "adl": 1852,
+        "fall": 1200
+      },
+      "validation": {
+        "adl": 423,
+        "fall": 300
+      },
+      "test": {
+        "adl": 432,
+        "fall": 298
+      }
+    },
+    "windows": {
+      "train": {
+        "total": 11008,
+        "adl": 7408,
+        "fall": 3600
+      },
+      "validation": {
+        "total": 7983,
+        "adl": 7683,
+        "fall": 300
+      },
+      "test": {
+        "total": 8148,
+        "adl": 7850,
+        "fall": 298
+      }
+    }
+  },
+  "validation_threshold_selection": {
+    "threshold": 0.8499999999999999,
+    "precision": 0.9735973597359736,
+    "recall": 0.9833333333333333,
+    "f1": 0.978441127694859
+  },
+  "validation": {
+    "threshold": 0.8499999999999999,
+    "samples": 7983,
+    "accuracy": 0.9983715395214832,
+    "precision": 0.9735973597359736,
+    "fall_recall": 0.9833333333333333,
+    "specificity": 0.9989587400754913,
+    "f1": 0.978441127694859,
+    "confusion_matrix": [
+      [
+        7675,
+        8
+      ],
+      [
+        5,
+        295
+      ]
+    ],
+    "roc_auc": 0.9964792398802551,
+    "pr_auc": 0.9887493377001914
+  },
+  "test": {
+    "threshold": 0.8499999999999999,
+    "samples": 8148,
+    "accuracy": 0.9963181148748159,
+    "precision": 0.9267515923566879,
+    "fall_recall": 0.9765100671140939,
+    "specificity": 0.9970700636942675,
+    "f1": 0.9509803921568627,
+    "confusion_matrix": [
+      [
+        7827,
+        23
+      ],
+      [
+        7,
+        291
+      ]
+    ],
+    "roc_auc": 0.9990368913777625,
+    "pr_auc": 0.9803844645411258,
+    "false_alarms": {
+      "adl_hours": 2.298029166666667,
+      "false_alarm_episodes": 8,
+      "false_alarm_episodes_per_hour": 3.481243891958145
+    },
+    "by_subject": {
+      "SA05": {
+        "threshold": 0.8499999999999999,
+        "samples": 1491,
+        "accuracy": 1.0,
+        "precision": 1.0,
+        "fall_recall": 1.0,
+        "specificity": 1.0,
+        "f1": 1.0,
+        "confusion_matrix": [
+          [
+            1416,
+            0
+          ],
+          [
+            0,
+            75
+          ]
+        ],
+        "roc_auc": 1.0,
+        "pr_auc": 0.9999999999999999
+      },
+      "SA12": {
+        "threshold": 0.8499999999999999,
+        "samples": 1491,
+        "accuracy": 0.9979879275653923,
+        "precision": 0.9615384615384616,
+        "fall_recall": 1.0,
+        "specificity": 0.9978813559322034,
+        "f1": 0.9803921568627451,
+        "confusion_matrix": [
+          [
+            1413,
+            3
+          ],
+          [
+            0,
+            75
+          ]
+        ],
+        "roc_auc": 0.9999717514124293,
+        "pr_auc": 0.9994871794871795
+      },
+      "SA20": {
+        "threshold": 0.8499999999999999,
+        "samples": 1441,
+        "accuracy": 1.0,
+        "precision": 1.0,
+        "fall_recall": 1.0,
+        "specificity": 1.0,
+        "f1": 1.0,
+        "confusion_matrix": [
+          [
+            1368,
+            0
+          ],
+          [
+            0,
+            73
+          ]
+        ],
+        "roc_auc": 1.0,
+        "pr_auc": 1.0
+      },
+      "SE04": {
+        "threshold": 0.8499999999999999,
+        "samples": 1102,
+        "accuracy": 0.9818511796733213,
+        "precision": 0.0,
+        "fall_recall": 0.0,
+        "specificity": 0.9818511796733213,
+        "f1": 0.0,
+        "confusion_matrix": [
+          [
+            1082,
+            20
+          ],
+          [
+            0,
+            0
+          ]
+        ],
+        "roc_auc": null,
+        "pr_auc": null
+      },
+      "SE06": {
+        "threshold": 0.8499999999999999,
+        "samples": 1492,
+        "accuracy": 0.9953083109919572,
+        "precision": 1.0,
+        "fall_recall": 0.9066666666666666,
+        "specificity": 1.0,
+        "f1": 0.951048951048951,
+        "confusion_matrix": [
+          [
+            1417,
+            0
+          ],
+          [
+            7,
+            68
+          ]
+        ],
+        "roc_auc": 0.9987955775111738,
+        "pr_auc": 0.9914393839383937
+      },
+      "SE11": {
+        "threshold": 0.8499999999999999,
+        "samples": 1131,
+        "accuracy": 1.0,
+        "precision": 0.0,
+        "fall_recall": 0.0,
+        "specificity": 1.0,
+        "f1": 0.0,
+        "confusion_matrix": [
+          [
+            1131,
+            0
+          ],
+          [
+            0,
+            0
+          ]
+        ],
+        "roc_auc": null,
+        "pr_auc": null
+      }
+    }
+  },
+  "limitations": [
+    "SE06 is the only elderly participant with fall recordings.",
+    "The README supplies recording-level labels but no exact fall-event timestamps; impact-centred windows are inferred from acceleration magnitude.",
+    "The source sensors differ from the MPU6050, so physical-unit conversion and real-device validation are required."
+  ]
+}

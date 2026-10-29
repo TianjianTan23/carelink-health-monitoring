@@ -1,0 +1,23 @@
+test_credentials_determine_role (backend.test_api.CareLinkApiTests) ... ok
+test_missing_invalid_and_duplicate_unresolved_alerts (backend.test_api.CareLinkApiTests) ... ok
+test_model_and_rule_attribution_are_stored_and_returned (backend.test_api.CareLinkApiTests) ... ok
+test_network_failure_becomes_stored_alert (backend.test_api.CareLinkApiTests) ... ok
+test_normal_classification_keeps_buzzer_off (backend.test_api.CareLinkApiTests) ... ok
+test_patient_cannot_acknowledge_but_nurse_can (backend.test_api.CareLinkApiTests) ... ok
+test_cnn_cannot_downgrade_critical (backend.test_integration.IntegratedMonitoringTests) ... ok
+test_cnn_real_weights_raise_warning_and_preserve_evidence (backend.test_integration.IntegratedMonitoringTests) ... ok
+test_confirmed_fall_overrides_missing_vitals (backend.test_integration.IntegratedMonitoringTests) ... ok
+test_flagged_or_stale_values_are_not_sent_to_lr (backend.test_integration.IntegratedMonitoringTests) ... ok
+test_held_value_is_display_only_never_a_normal_classification (backend.test_integration.IntegratedMonitoringTests) ... ok
+test_invalid_missing_data_and_alert_dedup_recovery (backend.test_integration.IntegratedMonitoringTests) ... ok
+test_missing_heart_still_allows_cnn_warning (backend.test_integration.IntegratedMonitoringTests) ... ok
+test_patient_cannot_read_other_patient_or_acknowledge (backend.test_integration.IntegratedMonitoringTests) ... ok
+test_retained_display_value_expires (backend.test_integration.IntegratedMonitoringTests) ... ok
+test_saved_history_and_synthetic_provenance (backend.test_integration.IntegratedMonitoringTests) ... ok
+test_unauthorized_and_cross_patient_requests_are_rejected (backend.test_integration.IntegratedMonitoringTests) ... ok
+test_untrusted_cnn_outputs_cannot_generate_alert (backend.test_integration.IntegratedMonitoringTests) ... ok
+
+----------------------------------------------------------------------
+Ran 18 tests in 2.721s
+
+OK

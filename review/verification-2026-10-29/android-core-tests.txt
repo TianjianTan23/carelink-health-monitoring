@@ -1,0 +1,26 @@
+PASS normal backend classification
+PASS warning backend classification
+PASS critical backend classification
+PASS missing backend classification
+PASS held backend classification
+PASS fall backend classification
+PASS cnn backend classification
+PASS CNN suspicion reaches the fall card
+PASS One current label
+PASS Stale normal is not shown as safe
+PASS Current valid heart rate
+PASS Stale heart rate excluded
+PASS Labelled last valid display
+PASS Held heart rate excluded from current readings
+PASS Held display expires after 30 seconds
+PASS Retained alarm marked stale
+PASS Five-second median
+PASS Missing bucket leaves a gap
+PASS Repeated accepted beat is not counted again
+PASS Held samples never fill chart gaps
+PASS Historical range limited to 10 minutes
+PASS Invalid model confidence rejected
+PASS Remote cleartext HTTP rejected
+PASS Release configuration requires HTTPS
+PASS Debug emulator address accepted
+25 Android core checks passed.

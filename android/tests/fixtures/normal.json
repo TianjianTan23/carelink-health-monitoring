@@ -1,0 +1,83 @@
+{
+  "patientId": "ttj",
+  "deviceId": "android-synthetic-test",
+  "measuredAt": "2026-10-29T03:51:03.575841+00:00",
+  "receivedAt": "2026-10-29T03:51:03.575841+00:00",
+  "connected": true,
+  "metrics": {
+    "hr": {
+      "value": 75.0,
+      "quality": "good",
+      "available": true,
+      "displayValue": 75.0,
+      "held": false,
+      "lastValidAt": "2026-10-29T03:51:03.575841+00:00",
+      "sampleId": "1",
+      "signalState": "TRACKING",
+      "signalQuality": null,
+      "sampleCount": null,
+      "gapCount": null
+    },
+    "temp": {
+      "value": 36.6,
+      "quality": "good",
+      "available": true
+    }
+  },
+  "fall": {
+    "active": false,
+    "quality": "good",
+    "eventAt": null
+  },
+  "raw": {
+    "accel_m_s2": null,
+    "gyro_deg_s": null,
+    "ir": null,
+    "red": null,
+    "object_temperature_c": 36.6,
+    "ambient_temperature_c": null
+  },
+  "ai": {
+    "state": "available",
+    "id": "prediction-1",
+    "patientId": "ttj",
+    "predictedAt": "2026-10-29T03:51:03.575841+00:00",
+    "inputsMeasuredAt": "2026-10-29T03:51:03.575841+00:00",
+    "model": "logistic_regression",
+    "modelVersion": "2026-10-22T03:16:07.264424+00:00",
+    "result": {
+      "label": "normal",
+      "abnormal_params": [],
+      "probabilities": {
+        "normal": 0.999984,
+        "warning": 1.6e-05,
+        "critical": 0.0
+      },
+      "model_classification": "normal",
+      "source": "logistic_regression",
+      "cnn_fall": {
+        "model": "sisfall_1d_cnn",
+        "status": "waiting_for_window",
+        "fall_probability": null,
+        "suspected_fall": false,
+        "threshold": null,
+        "reason": "Waiting for a complete two-second motion window."
+      },
+      "base_classification": "normal",
+      "confidence_kind": "health_model_probability"
+    },
+    "confidence": 0.999984,
+    "confidenceMeaning": "Logistic-regression class probability, not clinical certainty.",
+    "source": "backend"
+  },
+  "source": "backend",
+  "assessment": {
+    "level": "green",
+    "reasons": [
+      "The trained model classified the complete sensor snapshot as normal."
+    ],
+    "assessedAt": "2026-10-29T03:51:03.575841+00:00",
+    "ruleSetId": "logistic_regression:2026-10-22T03:16:07.264424+00:00",
+    "origin": "backend"
+  }
+}

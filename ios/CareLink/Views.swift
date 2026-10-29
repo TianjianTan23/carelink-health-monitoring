@@ -25,13 +25,14 @@ struct RootView: View {
                     if store.dataMode == .mock { NavigationStack { ScenariosView() }.tabItem { Label(store.t("演示", "Demo"), systemImage: "slider.horizontal.3") } }
                     NavigationStack { AccountView() }.tabItem { Label(store.t("账户", "Account"), systemImage: "person.crop.circle") }
                 }.id(store.mode)
+                .safeAreaInset(edge: .top, spacing: 0) { PersistentStatusView(reading: store.visiblePatients.first?.reading) }
             }
         }
         .task {
             while !Task.isCancelled {
                 do { try await Task.sleep(nanoseconds: 5_000_000_000) } catch { break }
                 store.now = Date()
-                if scenePhase == .active && store.autoRefresh && store.dataMode == .mock && store.session != nil { await store.refresh() }
+                if scenePhase == .active && store.autoRefresh && store.session != nil { await store.refresh() }
             }
         }
     }
@@ -49,7 +50,7 @@ struct LanguageButton: View {
 struct DemoNotice: View {
     @EnvironmentObject private var store: DemoStore
     var body: some View {
-        Label(store.dataMode == .mock ? store.t("虚构数据 · 演示规则，非真实照护判断", "Fictional data · Demo rules, not real health assessment") : store.t("API 模式 · 仅显示后端返回记录", "API mode · Backend records only"), systemImage: "info.circle")
+        Label(store.session?.simulation == true ? store.t("无硬件测试 · 模拟数据 · 真实 HTTP 后端", "Hardware-free test · Synthetic data · Real HTTP backend") : store.dataMode == .mock ? store.t("虚构数据 · 演示规则，非真实照护判断", "Fictional data · Demo rules, not real health assessment") : store.t("教学原型 · 不可用于诊断、治疗或临床决策", "Educational prototype · Not for diagnosis, treatment or clinical decisions"), systemImage: "info.circle")
             .font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("demoNotice")
     }
 }
@@ -69,8 +70,9 @@ struct ErrorNotice: View {
 struct LoginView: View {
     @EnvironmentObject private var store: DemoStore
     @State private var mode: AppMode = .pro
-    @State private var username = "demo@carelink.example"
-    @State private var password = "demo1234"
+    @State private var username = ""
+    @State private var baseURL = UserDefaults.standard.string(forKey: "carelink-server-url") ?? "http://127.0.0.1:8000"
+    @State private var password = ""
     @State private var issue: LoginIssue?
     @State private var showPassword = false
     @FocusState private var focusedField: LoginField?
@@ -125,18 +127,27 @@ struct LoginView: View {
                     Text(store.t("预填虚构账号，密码 demo1234。请勿输入真实凭据。", "Fictional account prefilled; password: demo1234. Do not enter real credentials."))
                         .font(.caption).foregroundStyle(.secondary)
                     } else {
-                        Text(store.t("使用后端已认证会话，角色和患者范围由服务器决定。此页面不发送账号密码。", "Use an authenticated backend session. Server determines role and patient scope; this screen does not send credentials.")).font(.subheadline)
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text(store.t("服务器地址", "Server address")).font(.headline)
+                            TextField("http://192.168.1.10:8000", text: $baseURL).keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
+                            Text(store.t("iPhone 请填写电脑的局域网地址；localhost 仅用于模拟器。", "On iPhone enter the computer's LAN address; localhost is for the simulator.")).font(.caption)
+                            TextField(store.t("用户 ID", "User ID"), text: $username).textInputAutocapitalization(.never).autocorrectionDisabled().textContentType(.username)
+                            SecureField(store.t("密码", "Password"), text: $password).textContentType(.password)
+                        }.textFieldStyle(.roundedBorder).careCard()
                     }
                     Button {
                         issue = store.dataMode == .mock ? DemoLogin.validate(username: username, password: password) : nil
-                        if issue == nil { Task { await store.signIn(mode) } }
+                        if issue == nil { Task {
+                            if store.dataMode == .mock { await store.signIn(mode) }
+                            else { await store.authenticate(username: username, password: password, baseURL: baseURL); if store.session != nil { password = "" } }
+                        } }
                     } label: {
-                        HStack { if store.loading { ProgressView().tint(.white) }; Text(store.dataMode == .mock ? store.t("登录演示", "Sign in to demo") : store.t("读取已认证会话", "Load authenticated session")); Spacer(); Image(systemName: "arrow.right") }
+                        HStack { if store.loading { ProgressView().tint(.white) }; Text(store.dataMode == .mock ? store.t("登录演示", "Sign in to demo") : store.t("登录", "Sign in")); Spacer(); Image(systemName: "arrow.right") }
                             .frame(minHeight: 32)
                     }.buttonStyle(.borderedProminent).controlSize(.large).clipShape(RoundedRectangle(cornerRadius: CareDesign.Corner.control)).disabled(store.loading || !store.configured).accessibilityIdentifier("enterDemo")
                     ErrorNotice()
                     DemoNotice()
-                    Text(store.dataMode == .mock ? store.t("此登录仅模拟表单交互，不验证真实身份。后端和 AI 尚未接入。", "This form simulates sign-in only and does not verify real identity. Backend and AI are not connected.") : store.t("接口契约仍需与组员确认；不会将 API 失败替换成模拟数据。", "The contract still needs team confirmation. API failures never substitute mock data."))
+                    Text(store.dataMode == .mock ? store.t("此登录仅模拟表单交互，不验证真实身份。后端和 AI 尚未接入。", "This form simulates sign-in only and does not verify real identity. Backend and AI are not connected.") : store.t("角色由服务器验证；网络失败会显示错误并保留带时间的旧值。", "The server verifies your role. Network errors retain timestamped earlier values."))
                         .font(.footnote).foregroundStyle(.secondary)
                 }.padding(CareDesign.Space.s24)
             }.background(Color("CareBackground"))
@@ -151,9 +162,9 @@ struct StatusBadge: View {
     let report: StatusReport
     var body: some View {
         Label(store.levelName(report.level), systemImage: report.level.symbol)
-            .font(.caption.weight(.semibold)).foregroundStyle(report.level.color)
+            .font(.headline.weight(.black)).foregroundStyle(Color.black)
             .padding(.horizontal, 9).padding(.vertical, 6)
-            .background(report.level.color.opacity(0.1), in: Capsule())
+            .background(Color.white, in: Capsule()).overlay(Capsule().stroke(report.level.color, lineWidth: 2))
     }
 }
 @MainActor
@@ -184,7 +195,7 @@ struct PatientRow: View {
             Text(store.firstReason(store.report(patient.reading))).font(.caption).foregroundStyle(.secondary)
             Text("\(store.t("最近采集", "Last sample")): \(store.time(patient.reading?.measuredAt))").font(.caption2).foregroundStyle(.secondary)
             HStack {
-                ForEach(MetricKey.allCases) { key in
+                ForEach(MetricKey.monitored) { key in
                     VStack(alignment: .leading, spacing: 4) {
                         Text(store.metricName(key)).font(.caption2).foregroundStyle(.secondary)
                         Text("\(store.value(patient.reading, key)) \(key.unit)").font(.subheadline.monospacedDigit())
@@ -295,7 +306,7 @@ struct MetricGrid: View {
     let reading: Reading?
     var body: some View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), alignment: .top), count: size.isAccessibilitySize ? 1 : 2), spacing: CareDesign.Space.s12) {
-            ForEach(MetricKey.allCases) { MetricCard(reading: reading, key: $0) }
+            ForEach(MetricKey.monitored) { MetricCard(reading: reading, key: $0) }
             FallCard(reading: reading)
         }
     }
@@ -327,6 +338,9 @@ struct BasicView: View {
                     }.frame(maxWidth: .infinity, alignment: .leading).padding(CareDesign.Space.s20)
                         .background(report.level.color.opacity(0.09), in: RoundedRectangle(cornerRadius: CareDesign.Corner.card, style: .continuous))
                     MetricGrid(reading: patient.reading)
+                    NavigationLink { PatientDetailView(patientID: patient.id) } label: {
+                        Label(store.t("图表、历史与 AI 分类", "Charts, history & AI classification"), systemImage: "chart.xyaxis.line")
+                    }.buttonStyle(.borderedProminent)
                     VStack(alignment: .leading, spacing: CareDesign.Space.s12) {
                     Text("\(store.t("记录来源", "Snapshot source")): \(patient.reading?.source ?? "—")").font(.caption).foregroundStyle(.secondary)
                     Label("\(store.t("最后成功更新", "Last successful update")): \(store.time(store.lastSuccessfulUpdate))", systemImage: "clock").font(.footnote).foregroundStyle(.secondary)
@@ -341,5 +355,28 @@ struct BasicView: View {
         }.background(Color("CareBackground")).navigationTitle(store.t("健康 · Basic", "Health · Basic"))
             .refreshable { await store.refresh() }
             .toolbar { ToolbarItem(placement: .topBarTrailing) { LanguageButton() } }
+    }
+}
+
+@MainActor
+struct PersistentStatusView: View {
+    @EnvironmentObject private var store: DemoStore
+    let reading: Reading?
+    var body: some View {
+        let report = store.report(reading)
+        VStack(spacing: 6) {
+            HStack(spacing: 12) {
+                Image(systemName: report.level.symbol).foregroundStyle(report.level.color).font(.title2)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(store.t("当前判断", "CURRENT ASSESSMENT")).font(.caption.bold()).foregroundStyle(.black)
+                    Text(report.level == .unknown ? store.t("等待有效数据", "WAITING FOR DATA") : store.levelName(report.level))
+                        .font(.system(.title, design: .rounded).weight(.black)).foregroundStyle(.black).minimumScaleFactor(0.7).lineLimit(1)
+                }
+                Spacer()
+            }.padding(12).background(Color.white, in: RoundedRectangle(cornerRadius: 10))
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(report.level.color, lineWidth: 2))
+            if report.level == .unknown { Text(store.t("等待有效数据 · 暂不判断状态", "Waiting for valid data · Status unavailable")).font(.caption.bold()) }
+            else if report.incomplete { Text(store.t("部分数据缺失或已过期", "Some data is missing or stale")).font(.caption.bold()) }
+        }.padding(.horizontal, 16).padding(.vertical, 8).background(Color("CareBackground"))
     }
 }

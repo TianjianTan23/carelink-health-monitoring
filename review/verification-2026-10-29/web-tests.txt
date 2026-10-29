@@ -1,0 +1,44 @@
+
+> carelink-health-monitoring@3.0.0 pretest
+> node scripts/build-mobile-review.mjs
+
+Built offline review: /Users/wangyinuo/Desktop/elder-sensors/carelink-iphone-review.html
+
+> carelink-health-monitoring@3.0.0 test
+> node --test tests/*.test.mjs && vitest run
+
+✔ dynamic labels preserve counts, ages, IDs and measured units (3.1545ms)
+✔ every mock profile and sensor-quality scene has English presentation text (3.971458ms)
+✔ switching language leaves sensor state, numeric classification and 1602 frames unchanged (0.939125ms)
+✔ language preference persists when storage works and fails gracefully when blocked (0.252375ms)
+✔ offline bundle: login validation, both modes, scoped navigation and languages (45.432416ms)
+✔ offline bundle: unavailable, poor, stale and connection failure never invent fresh values (2.726792ms)
+✔ offline bundle: alert details, local confirmation, history and feed states (4.40125ms)
+✔ offline bundle: optional browser storage and UUID API may be unavailable (2.579666ms)
+✔ triage covers all demo scenes and distinguishes invalid data from healthy data (3.164083ms)
+✔ fall stays red even when sensor is offline; known abnormalities survive incomplete data (0.115875ms)
+✔ poor/absent/expired measurements never show as valid current numbers (0.461625ms)
+✔ configurable bounds and exact boundary behavior (0.484042ms)
+✔ stale after timeout, future/missing timestamp is not green (0.201542ms)
+✔ 1602 frames always have exactly two ASCII rows of 16 characters; alarm takes priority (0.579042ms)
+✔ patient-scoped scenarios, history windows, no fake AI and reset (3.677667ms)
+✔ API adapter propagates failures, never replaces errors with fake data (0.392042ms)
+✔ Web generated resources exactly match the JSON bundled by iOS (3.691917ms)
+✔ Web classifies the shared cross-language golden vectors consistently (1.231333ms)
+✔ Demo Pro and Basic sessions have distinct patient scopes and immutable fixtures (1.272167ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 19
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 117.262334
+
+ RUN  v5.0.5 /Users/wangyinuo/Desktop/elder-sensors/carelink
+
+
+ Test Files  6 passed (6)
+      Tests  35 passed (35)
+   Start at  12:12:50
+   Duration  3.35s (environment 63%, tests 14%, setup 13%, import 5%, transform 4%)

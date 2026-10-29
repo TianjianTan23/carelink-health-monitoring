@@ -1,0 +1,228 @@
+{
+  "purpose": "Educational prototype; not for diagnosis or clinical decisions.",
+  "dataset": {
+    "path": "/Users/wangyinuo/Desktop/elder-sensors/server/ml/data/synthetic_patient_healthcare.csv",
+    "sha256": "2f3851063cfd86c6f3a0d7b6541717316fd134e896ddd6af9ef5aa18dd1651a8",
+    "source_rows": 60000,
+    "training_rows": 60000,
+    "dropped_invalid_rows": 0,
+    "label_distribution": {
+      "normal": 26366,
+      "warning": 24737,
+      "critical": 8897
+    }
+  },
+  "label_engineering": {
+    "normal": "No heart-rate alert, no temperature alert, and no fall.",
+    "warning": "Exactly one measurable vital-sign alert and no fall.",
+    "critical": "Fall detected, or both heart rate and temperature are abnormal.",
+    "excluded_from_features_and_labels": [
+      "SpO2 Level",
+      "Blood Pressure"
+    ]
+  },
+  "split": {
+    "test_size": 0.2,
+    "random_state": 42,
+    "stratified": true
+  },
+  "models": {
+    "initial_logistic_regression": {
+      "accuracy": 0.8139166666666666,
+      "precision_macro": 0.815386518047082,
+      "recall_macro": 0.7839585194657316,
+      "f1_macro": 0.796943375488543,
+      "critical_recall": 0.6773468240584598,
+      "missed_critical_rate": 0.3226531759415402,
+      "false_warning_rate": 0.14944054617864594,
+      "confusion_matrix": [
+        [
+          4485,
+          788,
+          0
+        ],
+        [
+          597,
+          4077,
+          274
+        ],
+        [
+          20,
+          554,
+          1205
+        ]
+      ],
+      "per_class": {
+        "normal": {
+          "precision": 0.8790670325362603,
+          "recall": 0.8505594538213541,
+          "f1-score": 0.864578313253012,
+          "support": 5273.0
+        },
+        "warning": {
+          "precision": 0.7523528326259458,
+          "recall": 0.8239692805173807,
+          "f1-score": 0.7865341950419601,
+          "support": 4948.0
+        },
+        "critical": {
+          "precision": 0.8147396889790399,
+          "recall": 0.6773468240584598,
+          "f1-score": 0.7397176181706568,
+          "support": 1779.0
+        },
+        "accuracy": 0.8139166666666666,
+        "macro avg": {
+          "precision": 0.815386518047082,
+          "recall": 0.7839585194657315,
+          "f1-score": 0.7969433754885431,
+          "support": 12000.0
+        },
+        "weighted avg": {
+          "precision": 0.817282015424216,
+          "recall": 0.8139166666666666,
+          "f1-score": 0.813887523798029,
+          "support": 12000.0
+        }
+      }
+    },
+    "logistic_regression": {
+      "accuracy": 1.0,
+      "precision_macro": 1.0,
+      "recall_macro": 1.0,
+      "f1_macro": 1.0,
+      "critical_recall": 1.0,
+      "missed_critical_rate": 0.0,
+      "false_warning_rate": 0.0,
+      "confusion_matrix": [
+        [
+          5273,
+          0,
+          0
+        ],
+        [
+          0,
+          4948,
+          0
+        ],
+        [
+          0,
+          0,
+          1779
+        ]
+      ],
+      "per_class": {
+        "normal": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 5273.0
+        },
+        "warning": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 4948.0
+        },
+        "critical": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 1779.0
+        },
+        "accuracy": 1.0,
+        "macro avg": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 12000.0
+        },
+        "weighted avg": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 12000.0
+        }
+      }
+    },
+    "random_forest": {
+      "accuracy": 1.0,
+      "precision_macro": 1.0,
+      "recall_macro": 1.0,
+      "f1_macro": 1.0,
+      "critical_recall": 1.0,
+      "missed_critical_rate": 0.0,
+      "false_warning_rate": 0.0,
+      "confusion_matrix": [
+        [
+          5273,
+          0,
+          0
+        ],
+        [
+          0,
+          4948,
+          0
+        ],
+        [
+          0,
+          0,
+          1779
+        ]
+      ],
+      "per_class": {
+        "normal": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 5273.0
+        },
+        "warning": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 4948.0
+        },
+        "critical": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 1779.0
+        },
+        "accuracy": 1.0,
+        "macro avg": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 12000.0
+        },
+        "weighted avg": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 12000.0
+        }
+      }
+    }
+  },
+  "selected_model": "logistic_regression",
+  "selection_rule": "Highest critical recall, then macro F1, then accuracy.",
+  "feature_names": [
+    "heart_rate",
+    "temperature",
+    "fall",
+    "heart_rate_low",
+    "heart_rate_high",
+    "temperature_high"
+  ],
+  "thresholds": {
+    "heart_rate_normal_min": 60.0,
+    "heart_rate_normal_max": 100.0,
+    "heart_rate_critical_min": 45.0,
+    "heart_rate_critical_max": 130.0,
+    "temperature_warning_high": 37.5,
+    "temperature_critical_low": 34.0,
+    "temperature_critical_high": 39.0
+  },
+  "trained_at": "2026-10-22T03:16:07.264424+00:00"
+}

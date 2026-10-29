@@ -1,0 +1,1 @@
+15 Android runtime checks passed (native JSON, HTTP, cookies, classification, Canvas).

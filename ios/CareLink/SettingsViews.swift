@@ -52,16 +52,17 @@ struct AccountView: View {
     var body: some View {
         Form {
             Section { DemoNotice(); ErrorNotice() }
-            Section(store.t("当前演示角色", "Current demo role")) {
+            Section(store.t("当前账号角色", "Account role")) {
                 LabeledContent(store.t("模式", "Mode"), value: store.mode.title)
                 LabeledContent(store.t("角色", "Role"), value: store.mode == .pro ? store.t("医护人员", "Clinician") : store.t("患者 / 家属", "Patient / family"))
-                Text(store.t("演示角色切换不验证身份。正式应用由后端会话决定角色及患者权限。", "Demo mode switching does not verify identity. The real backend session must determine roles and patient access."))
+                Text(store.t("实时模式的角色和患者权限由服务器决定。", "In live mode the server determines the role and patient scope."))
                     .font(.footnote).foregroundStyle(.secondary)
                 if store.dataMode == .mock { Button(store.mode == .pro ? store.t("体验 Basic 模式", "Try Basic mode") : store.t("体验 Pro 模式", "Try Pro mode")) {
                     Task { await store.signIn(store.mode == .pro ? .basic : .pro) }
                 } }
             }
             Section(store.t("偏好", "Preferences")) {
+                Toggle(store.t("每5秒更新", "Refresh every 5 seconds"), isOn: $store.autoRefresh)
                 Picker(store.t("语言", "Language"), selection: $store.language) { ForEach(AppLanguage.allCases) { Text($0.title).tag($0) } }
                 Picker(store.t("外观", "Appearance"), selection: $store.appearance) {
                     Text(store.t("浅色（默认）", "Light (default)")).tag("light")
@@ -71,10 +72,10 @@ struct AccountView: View {
             }
             Section(store.t("设备与后端", "Devices & backend")) {
                 Text(store.dataMode == .mock ? store.t("数据来源：本地共享 JSON 演示数据。未连接传感器、真实登录或 AI。", "Source: local shared JSON fixtures. Sensors, real authentication and AI are not connected.") : store.t("数据来源：已配置 API。来源、时间、预测及可用性以实际返回值为准。", "Source: configured API. Provenance, timestamps, predictions and availability follow actual responses."))
-                Text(store.t("MPU6050：运动/跌倒；MLX90614：表面温度；MAX30102：心率/血氧。LCD 1602A 由 ESP32 显示，不是手机端的替代程序。", "MPU6050: motion/fall; MLX90614: surface temperature; MAX30102: HR/SpO₂. The ESP32's LCD 1602A is a separate device display."))
+                Text(store.t("MPU6050：运动/跌倒；MLX90614：表面温度；KY-039：心率。LCD 1602A 由 ESP32 显示，不是手机端的替代程序。", "MPU6050: motion/fall; MLX90614: surface temperature; KY-039: heart rate. The ESP32's LCD 1602A is a separate device display."))
                     .font(.footnote).foregroundStyle(.secondary)
             }
-            Section { Button(store.t("退出演示", "Exit demo"), role: .destructive) { store.signOut() } }
+            Section { Button(store.t("退出登录", "Sign out"), role: .destructive) { store.signOut() } }
         }.navigationTitle(store.t("账户", "Account"))
     }
 }

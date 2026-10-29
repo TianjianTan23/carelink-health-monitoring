@@ -1,0 +1,2 @@
+PASS native URLSession login/cookie, authorized patients, three-sensor JSON, history, predictions, alerts: 47 readings, 100 predictions, 1 alerts
+PASS native sign-out

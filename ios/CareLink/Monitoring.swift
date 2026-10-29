@@ -7,11 +7,12 @@ enum RiskLevel: String, Codable, CaseIterable, Identifiable {
 }
 enum MetricKey: String, CaseIterable, Identifiable {
     case hr, spo2, temp
+    static var monitored: [MetricKey] { [.hr, .temp] }
     var id: String { rawValue }
     var unit: String { self == .hr ? "bpm" : self == .spo2 ? "%" : "°C" }
     var symbol: String { self == .hr ? "heart.fill" : self == .spo2 ? "drop.fill" : "thermometer" }
     func metric(in reading: Reading) -> Metric {
-        switch self { case .hr: return reading.metrics.hr; case .spo2: return reading.metrics.spo2; case .temp: return reading.metrics.temp }
+        switch self { case .hr: return reading.metrics.hr; case .spo2: return reading.metrics.spo2 ?? Metric(value: nil, quality: .unavailable); case .temp: return reading.metrics.temp }
     }
 }
 enum ReadingReason: Equatable {
@@ -47,7 +48,7 @@ enum Monitoring {
         var incomplete = !fresh || reading.fall.quality != .good
         if reading.fall.active { levels.append(.red); reasons.append(.fall) }
         if !fresh { reasons.append(reading.connected ? .stale : .offline) }
-        for key in MetricKey.allCases {
+        for key in MetricKey.monitored {
             let metric = key.metric(in: reading)
             guard fresh, usable(metric), let value = metric.value else {
                 incomplete = true
@@ -63,14 +64,20 @@ enum Monitoring {
         return StatusReport(level: level, reasons: reasons.isEmpty ? [.stable] : reasons, incomplete: incomplete)
     }
     static func display(_ reading: Reading?, key: MetricKey, rules: DemoRules, now: Date = Date()) -> String {
-        guard isFresh(reading, rules: rules, now: now), let reading = reading else { return "—" }
+        guard let reading = reading else { return "—" }
         let metric = key.metric(in: reading)
-        guard usable(metric), let value = metric.value else { return "—" }
-        return key == .temp ? String(format: "%.1f", value) : String(Int(value.rounded()))
+        if isFresh(reading, rules: rules, now: now), usable(metric), let value = metric.value {
+            return key == .temp ? String(format: "%.1f", value) : String(Int(value.rounded()))
+        }
+        if key == .hr, let held = metric.displayValue ?? (usable(metric) ? metric.value : nil),
+           held.isFinite, now.timeIntervalSince(metric.lastValidAt ?? reading.measuredAt) <= 30 {
+            return String(Int(held.rounded()))
+        }
+        return "—"
     }
     static func liveReport(_ reading: Reading?, rules: DemoRules, now: Date = Date()) -> StatusReport {
         guard let reading = reading else { return StatusReport(level: .unknown, reasons: [.noData], incomplete: true) }
-        let incomplete = !isFresh(reading, rules: rules, now: now) || MetricKey.allCases.contains { !usable($0.metric(in: reading)) } || reading.fall.quality != .good
+        let incomplete = !isFresh(reading, rules: rules, now: now) || MetricKey.monitored.contains { !usable($0.metric(in: reading)) } || reading.fall.quality != .good
         if let assessment = reading.assessment {
             let age = now.timeIntervalSince(assessment.assessedAt)
             let stale = age > rules.staleAfterSeconds || age < -5
@@ -78,5 +85,34 @@ enum Monitoring {
             return StatusReport(level: level, reasons: assessment.reasons.map { .backend($0) } + (stale ? [.backendStale] : []), incomplete: incomplete || stale)
         }
         return StatusReport(level: reading.fall.active ? .red : .unknown, reasons: reading.fall.active ? [.fall] : [.backendPending], incomplete: true)
+    }
+}
+
+struct TrendSample: Identifiable {
+    let id: Int; let time: Date; let value: Double; let segment: Int
+}
+enum TrendAggregation {
+    static func points(_ history: [Reading], key: MetricKey, now: Date) -> [TrendSample] {
+        let end = floor(now.timeIntervalSince1970 / 5) * 5
+        var buckets = [Int:[Double]](), seen = Set<String>(), first = Int(end)
+        for reading in history.sorted(by: { $0.measuredAt < $1.measuredAt }) {
+            let stamp = reading.measuredAt.timeIntervalSince1970, bucket = Int(floor(stamp / 5) * 5)
+            guard stamp >= end - 600, Double(bucket) < end else { continue }
+            first = min(first, bucket)
+            let metric = key.metric(in: reading)
+            guard Monitoring.usable(metric), metric.held != true, let value = metric.value else { continue }
+            let sampleID = metric.sampleId ?? "\(reading.deviceId):\(stamp)"
+            guard seen.insert(sampleID).inserted else { continue }
+            buckets[bucket, default: []].append(value)
+        }
+        var result = [TrendSample](), segment = 0
+        for stamp in stride(from: first, to: Int(end), by: 5) {
+            let values = (buckets[stamp] ?? []).sorted()
+            guard !values.isEmpty else { segment += 1; continue }
+            let mid = values.count / 2
+            let median = values.count % 2 == 1 ? values[mid] : (values[mid - 1] + values[mid]) / 2
+            result.append(TrendSample(id: stamp, time: Date(timeIntervalSince1970: Double(stamp)), value: median, segment: segment))
+        }
+        return result
     }
 }

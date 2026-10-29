@@ -38,7 +38,7 @@ struct CoreChecks {
         for (native, fixture) in zip(loaded, patients) {
             check(native.id == fixture.id && native.name == fixture.name, "Shared profile identity")
             check(native.reading?.metrics.hr.value == fixture.reading?.metrics.hr.value, "Shared HR fixture")
-            check(native.reading?.metrics.spo2.value == fixture.reading?.metrics.spo2.value, "Shared SpO2 fixture")
+            check(native.reading?.metrics.spo2?.value == fixture.reading?.metrics.spo2?.value, "Shared SpO2 fixture")
             check(native.reading?.metrics.temp.value == fixture.reading?.metrics.temp.value, "Shared temperature fixture")
             check(native.reading?.fall.active == fixture.reading?.fall.active, "Shared fall fixture")
         }
@@ -103,7 +103,7 @@ struct CoreChecks {
         check(apiProfiles.count == 8 && apiPatient.id == "p001", "Shared proposed API profile fixtures")
         check(apiPredictions[0].confidence == nil && apiPredictions[0].predictedAt == nil, "No fabricated prediction confidence or time")
         var configuration = try load("carelink-config.json", ServiceConfiguration.self)
-        configuration.mode = .live; configuration.baseUrl = "https://backend.example"
+        configuration.mode = .live; configuration.baseUrl = "https://backend.example"; configuration.apiConfirmed = false
         do { try configuration.validate(); fatalError("Unconfirmed API must fail") } catch { checks += 1 }
         configuration.apiConfirmed = true
         let api = try LiveApiService(configuration: configuration, rules: rules, clock:{anchor}) { request in
@@ -182,6 +182,45 @@ struct CoreChecks {
         let basicMock = try await service.getPatients()
         check(basicMock.map { $0.id } == ["p004"], "Native MockDataService enforces Basic scope")
         do { _ = try await service.getHistory(patientID:"p001"); fatalError("Basic cannot query another patient") } catch ServiceError.forbidden { checks += 1 }
+        // Regression checks for the actual KY-039 + LR/CNN API contract.
+        var noSpo2 = loaded[0].reading!
+        noSpo2.metrics.spo2 = nil
+        noSpo2.measuredAt = anchor; noSpo2.connected = true
+        noSpo2.metrics.hr = Metric(value: 75, quality: .good)
+        noSpo2.metrics.temp = Metric(value: 36.6, quality: .good)
+        noSpo2.assessment = BackendAssessment(level:.green,reasons:["normal"],assessedAt:anchor,ruleSetId:"lr",origin:"backend")
+        let wire = try WireJSON.encoder().encode(noSpo2)
+        let decodedLive = try WireJSON.decoder().decode(Reading.self,from:wire)
+        check(decodedLive.metrics.spo2 == nil, "Live readings decode without nonexistent SpO2")
+        check(Monitoring.liveReport(decodedLive,rules:rules,now:anchor).level == .green, "Missing SpO2 does not invalidate a complete three-sensor reading")
+        var held = noSpo2
+        held.metrics.hr = Metric(value:nil,quality:.unavailable,displayValue:75,held:true,lastValidAt:anchor.addingTimeInterval(-5))
+        check(Monitoring.display(held,key:.hr,rules:rules,now:anchor) == "75", "Retain display-only last valid BPM")
+        check(!Monitoring.usable(held.metrics.hr), "Held BPM is not a usable measurement")
+        check(Monitoring.display(held,key:.hr,rules:rules,now:anchor.addingTimeInterval(31)) == "—", "Held BPM expires after 30 seconds")
+        let chartEnd = Date(timeIntervalSince1970: floor(anchor.timeIntervalSince1970 / 5) * 5)
+        var first = noSpo2; first.measuredAt = chartEnd.addingTimeInterval(-19); first.metrics.hr.value = 70
+        var second = first; second.measuredAt = chartEnd.addingTimeInterval(-18); second.metrics.hr.value = 90
+        held.measuredAt = chartEnd.addingTimeInterval(-9)
+        var final = first; final.measuredAt = chartEnd.addingTimeInterval(-4); final.metrics.hr.value = 80
+        let trend = TrendAggregation.points([first,second,held,final],key:.hr,now:chartEnd)
+        check(trend.count == 2 && trend[0].value == 80, "Five-second median, excluding held values")
+        check(trend[0].segment != trend[1].segment, "Missing intervals split native chart lines")
+        var csrfSession = sessions.pro; csrfSession.csrfToken = UUID().uuidString
+        let authenticatedAPI = try LiveApiService(configuration:configuration,rules:rules) { request in
+            if request.url!.path == "/api/login" {
+                let body = try JSONSerialization.jsonObject(with:request.httpBody!) as! [String:String]
+                check(request.httpMethod == "POST" && body["username"] == "test-user" && body["password"] == "test-password", "Native login sends JSON to the server")
+                return (try WireJSON.encoder().encode(csrfSession),HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)
+            }
+            check(request.url!.path == "/api/logout" && request.httpMethod == "POST", "Native sign-out calls backend")
+            check(request.value(forHTTPHeaderField:"X-CSRF-Token") == csrfSession.csrfToken, "Native mutations send server CSRF token")
+            return (Data("{\"status\":\"signed_out\"}".utf8),HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)
+        }
+        let authenticatedSession = try await authenticatedAPI.authenticate(username:"test-user",password:"test-password")
+        check(authenticatedSession.role == "clinician", "Native authentication uses the server role")
+        await authenticatedAPI.logout()
+        do { _ = try await authenticatedAPI.getPatients(); fatalError("Signed-out access must fail") } catch ServiceError.forbidden { checks += 1 }
         print("PASS: \(checks) Swift data/model/rule checks. iOS UI build is a separate Xcode check.")
     }
 }

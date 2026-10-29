@@ -7,6 +7,8 @@ enum AppMode: String, Codable, CaseIterable, Identifiable {
 }
 
 struct Session: Codable {
+    var csrfToken: String? = nil
+    var simulation: Bool? = nil
     var userId: String
     var role: String
     var mode: AppMode
@@ -21,8 +23,13 @@ enum Quality: String, Codable {
     }
 }
 
-struct Metric: Codable { var value: Double?; var quality: Quality; var available: Bool? = nil }
-struct Metrics: Codable { var hr: Metric; var spo2: Metric; var temp: Metric }
+struct Metric: Codable {
+    var value: Double?; var quality: Quality; var available: Bool? = nil
+    var displayValue: Double? = nil; var held: Bool? = nil
+    var lastValidAt: Date? = nil; var sampleId: String? = nil
+    var signalState: String? = nil; var signalQuality: Double? = nil
+}
+struct Metrics: Codable { var hr: Metric; var spo2: Metric?; var temp: Metric }
 struct FallEvent: Codable { var active: Bool; var quality: Quality; var eventAt: Date? }
 struct Vector3: Codable { var x: Double; var y: Double; var z: Double }
 struct RawData: Codable {

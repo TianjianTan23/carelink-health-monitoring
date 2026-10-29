@@ -8,7 +8,7 @@ export interface DataService {
   getSession(mode?:AppMode):Promise<Session>;
   getPatients():Promise<Patient[]>;
   getPatient(id:string):Promise<Patient|null>;
-  getReadings(id:string):Promise<SensorReading[]>;
+  getReadings(id:string,minutes?:number):Promise<SensorReading[]>;
   getPredictions(id:string):Promise<Prediction[]>;
   getAlerts():Promise<Alert[]>;
   acknowledgeAlert(id:string):Promise<Alert>;

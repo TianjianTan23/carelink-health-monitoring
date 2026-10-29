@@ -1,0 +1,8 @@
+{
+  "scope": "localhost HTTP; POST through SQLite alert write then authenticated GET, excludes WiFi/sensor/mobile display",
+  "requests": 30,
+  "post_median_ms": 3.95,
+  "post_p95_ms": 4.414,
+  "alert_visible_median_ms": 6.482,
+  "alert_visible_p95_ms": 7.479
+}

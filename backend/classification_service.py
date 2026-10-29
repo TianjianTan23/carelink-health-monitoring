@@ -1,44 +1,14 @@
+"""CareLink adapter around the project's single LR + CNN implementation."""
 from __future__ import annotations
-
-from copy import deepcopy
+import sys
 from pathlib import Path
-from threading import Lock
 from typing import Any, Optional
 
-import joblib
-import pandas as pd
-
-
-MODEL_PATH = Path(__file__).resolve().parent / "ml" / "artifacts" / "health_classifier.joblib"
-_model_lock = Lock()
-_artifact: Optional[dict[str, Any]] = None
-
-
-def _load_artifact() -> dict[str, Any]:
-    global _artifact
-    with _model_lock:
-        if _artifact is None:
-            loaded = joblib.load(MODEL_PATH)
-            if not isinstance(loaded, dict) or "estimator" not in loaded:
-                raise ValueError("The trained-model artifact has an invalid format")
-            _artifact = loaded
-        return _artifact
-
-
-def model_info() -> dict[str, Any]:
-    return {key: deepcopy(value) for key, value in _load_artifact().items() if key != "estimator"}
-
-
-def _feature_vector(heart_rate: float, temperature: float, fall: bool, thresholds: dict[str, float]) -> list[float]:
-    return [
-        float(heart_rate),
-        float(temperature),
-        float(fall),
-        float(heart_rate < thresholds["heart_rate_normal_min"]),
-        float(heart_rate > thresholds["heart_rate_normal_max"]),
-        float(temperature > thresholds["temperature_warning_high"]),
-    ]
-
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+from sensor_core.classification_service import classify_values as health_values, classify_sensor_payload, combine_cnn_result, model_info
+from sensor_core.fall_service import infer_fall_window, fall_model_info
 
 def _severity(value: float, warning_low: Optional[float], warning_high: Optional[float], critical_low: Optional[float], critical_high: Optional[float]) -> Optional[str]:
     if critical_low is not None and value < critical_low:
@@ -93,42 +63,28 @@ def attribute_abnormal_params(heart_rate: float, temperature: float, fall: bool,
     return abnormal
 
 
-def classify_values(heart_rate: float, temperature: float, fall: bool) -> dict[str, Any]:
-    if not 30 <= heart_rate <= 250:
-        raise ValueError("heart_rate must be between 30 and 250 BPM")
-    if not 30 <= temperature <= 45:
-        raise ValueError("temperature must be between 30 and 45 °C")
 
-    artifact = _load_artifact()
-    thresholds = artifact["thresholds"]
-    estimator = artifact["estimator"]
-    frame = pd.DataFrame(
-        [_feature_vector(heart_rate, temperature, fall, thresholds)],
-        columns=artifact["feature_names"],
-    )
-    raw_probabilities = estimator.predict_proba(frame)[0]
-    probabilities = {
-        str(label): float(probability)
-        for label, probability in zip(estimator.classes_, raw_probabilities)
-    }
-    label = max(probabilities, key=probabilities.get)
-    confidence = probabilities[label]
-    abnormal_params = attribute_abnormal_params(heart_rate, temperature, fall, thresholds)
-    return {
-        "label": label,
-        "classification": label,
-        "confidence": round(float(confidence), 6),
-        "probabilities": {
-            name: round(probabilities.get(name, 0.0), 6)
-            for name in ("normal", "warning", "critical")
-        },
-        "abnormal_params": abnormal_params,
-        "source": artifact["selected_model"],
-        "model": artifact["selected_model"],
-        "model_version": str(artifact.get("version") or artifact.get("trained_at") or "1.0"),
-        "features": {
-            "heart_rate_bpm": heart_rate,
-            "temperature_c": temperature,
-            "fall_detected": fall,
-        },
-    }
+def predict_snapshot(heart, temperature, fall, motion_window=None, uptime_ms=None):
+    base = classify_sensor_payload({"heart_rate_bpm": heart, "object_temp_c": temperature, "fall_detected": fall})
+    if fall is None and base["classification"] != "critical":
+        base.update(classification="unavailable", confidence=0.0, source="input_validation")
+        base["reasons"] = ["Fall state is unavailable."]
+    decision = combine_cnn_result(base, infer_fall_window(motion_window, uptime_ms))
+    abnormal = []
+    thresholds = model_info()["thresholds"]
+    # Explain each available input even if another channel has missing data.
+    if heart is not None and 30 <= heart <= 250:
+        abnormal += [a for a in attribute_abnormal_params(heart, 36.5, False, thresholds) if a["parameter"] == "heart_rate_bpm"]
+    if temperature is not None and 30 <= temperature <= 45:
+        abnormal += [a for a in attribute_abnormal_params(75, temperature, False, thresholds) if a["parameter"] == "temperature_c"]
+    if fall:
+        abnormal.append({"parameter":"fall_detected", "value":True, "severity":"critical", "reason":"Hardware state machine reported a confirmed fall sequence."})
+    if decision["cnn_fall"]["suspected_fall"]:
+        abnormal.append({"parameter":"cnn_suspected_fall", "value":decision["cnn_fall"]["fall_probability"], "severity":"warning", "reason":"CNN detected a possible fall; check the person."})
+    return {**decision, "label": None if decision["classification"] == "unavailable" else decision["classification"],
+            "model_version": str(model_info().get("trained_at") or "1.0"), "abnormal_params": abnormal}
+
+
+def classify_values(heart_rate: float, temperature: float, fall: bool) -> dict[str, Any]:
+    health_values(heart_rate, temperature, fall)  # validate explicit /classify requests
+    return predict_snapshot(heart_rate, temperature, fall)

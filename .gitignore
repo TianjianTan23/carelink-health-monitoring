@@ -12,3 +12,11 @@ backend/*.db-shm
 backend/*.db-wal
 .env*
 firmware/**/secrets.h
+**/secrets.h.tmp-*
+
+!.env.example
+.secrets/
+*.pem
+*.key
+*.p12
+*.keystore

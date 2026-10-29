@@ -1,13 +1,6 @@
 import SwiftUI
 import Charts
 
-private struct TrendPoint: Identifiable {
-    let id: Int
-    let time: Date
-    let value: Double
-    let segment: Int
-}
-
 @MainActor
 struct PatientDetailView: View {
     @EnvironmentObject private var store: DemoStore
@@ -17,16 +10,8 @@ struct PatientDetailView: View {
     @State private var showAllHistory = false
     var history: [Reading] { store.histories[patientID] ?? [] }
 
-    private func points(for patient: Patient) -> [TrendPoint] {
-        guard store.fresh(patient.reading) else { return [] }
-        var result = [TrendPoint](), segment = 0
-        for (index, reading) in history.reversed().enumerated() {
-            let value = metric.metric(in: reading)
-            if reading.connected && reading.scenario != "stale" && Monitoring.usable(value), let number = value.value {
-                result.append(TrendPoint(id: index, time: reading.measuredAt, value: number, segment: segment))
-            } else { segment += 1 }
-        }
-        return result
+    private func points(for patient: Patient) -> [TrendSample] {
+        TrendAggregation.points(history, key: metric, now: store.now)
     }
     private func json<T: Encodable>(_ value: T?) -> String {
         guard let value = value, let data = try? WireJSON.encoder().encode(value) else { return "null" }
@@ -35,7 +20,7 @@ struct PatientDetailView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: CareDesign.Space.s20) {
-                if store.mode == .pro, let patient = store.patient(patientID) {
+                if let patient = store.patient(patientID) {
                     DemoNotice(); ErrorNotice()
                     HStack(spacing: 12) {
                         AvatarView(patient: patient)
@@ -73,7 +58,7 @@ struct PatientDetailView: View {
                         VStack(alignment: .leading, spacing: 14) {
                             Text(store.t("最近 10 分钟趋势", "Last 10 minutes: trends")).font(.headline)
                             Picker(store.t("指标", "Metric"), selection: $metric) {
-                                ForEach(MetricKey.allCases) { Text(store.metricName($0)).tag($0) }
+                                ForEach(MetricKey.monitored) { Text(store.metricName($0)).tag($0) }
                             }.pickerStyle(.segmented)
                             let trend = points(for: patient)
                             if trend.isEmpty {
@@ -83,10 +68,11 @@ struct PatientDetailView: View {
                                 Chart(trend) { point in
                                     LineMark(x: .value("Time", point.time), y: .value(metric.unit, point.value), series: .value("Segment", point.segment))
                                         .foregroundStyle(Color("AccentColor"))
+                                    PointMark(x: .value("Time", point.time), y: .value(metric.unit, point.value)).foregroundStyle(Color("AccentColor"))
                                 }.chartLegend(.hidden).chartYScale(domain: .automatic(includesZero: false)).frame(height: 180)
-                                    .accessibilityLabel(store.t("十分钟模拟趋势，缺失读数不连线。", "Ten-minute mock trend; gaps indicate invalid readings."))
+                                    .accessibilityLabel(store.t("十分钟趋势，缺失读数不连线。", "Ten-minute trend; gaps indicate invalid readings."))
                             }
-                            Text(store.dataMode == .mock ? store.t("每 30 秒一条模拟记录；非有效读数不连线。", "Mock samples every 30 seconds; invalid readings create gaps.") : store.t("仅显示 API 返回的采样；不会用模拟数据补齐。", "Only API samples are shown; gaps are not filled with mock data.")).font(.caption).foregroundStyle(.secondary)
+                            Text(store.t("每5秒一个点，取有效采样的中位数；缺测留空。", "One point per 5 seconds: median of valid samples; missing intervals remain gaps.")).font(.caption).foregroundStyle(.secondary)
                         }.padding(.vertical, 4)
                     }
                     GroupBox {
@@ -120,9 +106,9 @@ struct PatientDetailView: View {
                                         if reading.fall.active { Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.red).accessibilityLabel(store.t("跌倒事件待核实", "Unverified fall event")) }
                                     }
                                     HStack {
-                                        ForEach(MetricKey.allCases) { key in
+                                        ForEach(MetricKey.monitored) { key in
                                             let item = key.metric(in: reading)
-                                            Text("\(reading.connected && reading.scenario != "stale" && Monitoring.usable(item) ? (key == .temp ? String(format: "%.1f", item.value ?? 0) : String(Int((item.value ?? 0).rounded()))) : "—") \(key.unit)")
+                                            Text("\(Monitoring.usable(item) ? (key == .temp ? String(format: "%.1f", item.value ?? 0) : String(Int((item.value ?? 0).rounded()))) : "—") \(key.unit)")
                                                 .font(.caption.monospacedDigit()).frame(maxWidth: .infinity, alignment: .leading)
                                         }
                                     }
@@ -156,7 +142,7 @@ struct PatientDetailView: View {
                                     LabeledContent(store.t("模型 / 版本", "Model / version"), value: "\(prediction.model ?? "—") / \(prediction.modelVersion ?? "—")")
                                     LabeledContent(store.t("状态", "State"), value: prediction.state)
                                     LabeledContent(store.t("来源", "Source"), value: prediction.source ?? "—")
-                                    LabeledContent(store.t("返回置信度", "Returned confidence"), value: prediction.confidence.map { String($0) } ?? "—")
+                                    LabeledContent(store.t("返回置信度", "Returned confidence"), value: prediction.confidence.map { String(format: "%.1f%%", $0 * 100) } ?? "—")
                                     if let meaning = prediction.confidenceMeaning { Text(meaning).font(.caption) }
                                     if prediction.state == "available" { Text(json(prediction.result)).font(.system(.caption, design: .monospaced)).textSelection(.enabled) }
                                     Divider()

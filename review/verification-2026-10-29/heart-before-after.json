@@ -1,0 +1,29 @@
+{
+  "baseline_commit": "1592530fe49dac7883d99e9cfd32a3b256d8114e",
+  "kind": "synthetic waveform replay, 500 Hz, no hardware",
+  "zero_timing_meaning": "No qualifying detection occurred in the observation window",
+  "scenarios": [
+    {
+      "scenario": "dc_2200",
+      "old_first_ms": 2042,
+      "new_first_ms": 1662,
+      "old_rate_change_ms": 0,
+      "new_rate_change_ms": 1182,
+      "old_valid_1s_samples": 9,
+      "new_valid_1s_samples": 9,
+      "old_mae_bpm": 0.102881,
+      "new_mae_bpm": 0.12712
+    },
+    {
+      "scenario": "low_dc_1000",
+      "old_first_ms": 0,
+      "new_first_ms": 1662,
+      "old_rate_change_ms": 0,
+      "new_rate_change_ms": 1182,
+      "old_valid_1s_samples": 0,
+      "new_valid_1s_samples": 9,
+      "old_mae_bpm": -1,
+      "new_mae_bpm": 0.12712
+    }
+  ]
+}

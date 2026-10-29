@@ -15,3 +15,14 @@ it('a late response cannot replace a newly selected patient',async()=>{
  rerender({id:'b',load:loadB});await waitFor(()=>expect(result.current[0].data).toEqual(['patient-b']));
  await act(async()=>{finishA(['patient-a']);await a;});expect(result.current[0].data).toEqual(['patient-b']);
 });
+
+it('coalesces fast polls and renders a slow successful response',async()=>{
+ let finish!:(v:string[])=>void;const pending=new Promise<string[]>(resolve=>{finish=resolve;});
+ const load=vi.fn(()=>pending);
+ const first=()=>load(),second=()=>load(),third=()=>load();
+ const {result,rerender}=renderHook(({loadFn})=>useResource(loadFn,[] as string[],v=>!v.length,true,'same-patient'),{initialProps:{loadFn:first}});
+ rerender({loadFn:second});rerender({loadFn:third});
+ expect(load).toHaveBeenCalledTimes(1);
+ await act(async()=>{finish(['fresh-reading']);await pending;});
+ await waitFor(()=>expect(result.current[0].data).toEqual(['fresh-reading']));
+});

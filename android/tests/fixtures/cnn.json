@@ -1,0 +1,91 @@
+{
+  "patientId": "ttj",
+  "deviceId": "android-synthetic-test",
+  "measuredAt": "2026-10-29T03:51:04.739219+00:00",
+  "receivedAt": "2026-10-29T03:51:04.739219+00:00",
+  "connected": true,
+  "metrics": {
+    "hr": {
+      "value": 75.0,
+      "quality": "good",
+      "available": true,
+      "displayValue": 75.0,
+      "held": false,
+      "lastValidAt": "2026-10-29T03:51:04.739219+00:00",
+      "sampleId": "7",
+      "signalState": "TRACKING",
+      "signalQuality": null,
+      "sampleCount": null,
+      "gapCount": null
+    },
+    "temp": {
+      "value": 36.6,
+      "quality": "good",
+      "available": true
+    }
+  },
+  "fall": {
+    "active": false,
+    "quality": "good",
+    "eventAt": null
+  },
+  "raw": {
+    "accel_m_s2": null,
+    "gyro_deg_s": null,
+    "ir": null,
+    "red": null,
+    "object_temperature_c": 36.6,
+    "ambient_temperature_c": null
+  },
+  "ai": {
+    "state": "available",
+    "id": "prediction-7",
+    "patientId": "ttj",
+    "predictedAt": "2026-10-29T03:51:04.739219+00:00",
+    "inputsMeasuredAt": "2026-10-29T03:51:04.739219+00:00",
+    "model": "logistic_regression",
+    "modelVersion": "2026-10-22T03:16:07.264424+00:00",
+    "result": {
+      "label": "warning",
+      "abnormal_params": [
+        {
+          "parameter": "cnn_suspected_fall",
+          "value": 0.9999809265136719,
+          "severity": "warning",
+          "reason": "CNN detected a possible fall; check the person."
+        }
+      ],
+      "probabilities": {
+        "normal": 0.999984,
+        "warning": 1.6e-05,
+        "critical": 0.0
+      },
+      "model_classification": "normal",
+      "source": "logistic_regression+sisfall_cnn",
+      "cnn_fall": {
+        "model": "sisfall_1d_cnn",
+        "status": "ready",
+        "fall_probability": 0.9999809265136719,
+        "suspected_fall": true,
+        "threshold": 0.8499999999999999,
+        "window_samples": 400,
+        "sample_rate_hz": 200
+      },
+      "base_classification": "normal",
+      "confidence_kind": "cnn_fall_score"
+    },
+    "confidence": 0.9999809265136719,
+    "confidenceMeaning": "CNN fall score; the fusion rule raised the final state to warning.",
+    "source": "backend"
+  },
+  "source": "backend",
+  "assessment": {
+    "level": "yellow",
+    "reasons": [
+      "CNN detected a possible fall; check the person."
+    ],
+    "assessedAt": "2026-10-29T03:51:04.739219+00:00",
+    "ruleSetId": "logistic_regression:2026-10-22T03:16:07.264424+00:00",
+    "origin": "backend"
+  }
+}

@@ -1,0 +1,44 @@
+
+> carelink-health-monitoring@3.0.0 pretest
+> node scripts/build-mobile-review.mjs
+
+Built offline review: /private/tmp/carelink-iphone-review.html
+
+> carelink-health-monitoring@3.0.0 test
+> node --test tests/*.test.mjs && vitest run
+
+✔ dynamic labels preserve counts, ages, IDs and measured units (1.653834ms)
+✔ every mock profile and sensor-quality scene has English presentation text (1.882834ms)
+✔ switching language leaves sensor state, numeric classification and 1602 frames unchanged (0.646042ms)
+✔ language preference persists when storage works and fails gracefully when blocked (0.147667ms)
+✔ offline bundle: login validation, both modes, scoped navigation and languages (40.857208ms)
+✔ offline bundle: unavailable, poor, stale and connection failure never invent fresh values (2.429084ms)
+✔ offline bundle: alert details, local confirmation, history and feed states (4.259708ms)
+✔ offline bundle: optional browser storage and UUID API may be unavailable (2.168208ms)
+✔ triage covers all demo scenes and distinguishes invalid data from healthy data (3.321625ms)
+✔ fall stays red even when sensor is offline; known abnormalities survive incomplete data (0.102958ms)
+✔ poor/absent/expired measurements never show as valid current numbers (0.128625ms)
+✔ configurable bounds and exact boundary behavior (0.095625ms)
+✔ stale after timeout, future/missing timestamp is not green (0.072666ms)
+✔ 1602 frames always have exactly two ASCII rows of 16 characters; alarm takes priority (0.328ms)
+✔ patient-scoped scenarios, history windows, no fake AI and reset (2.160958ms)
+✔ API adapter propagates failures, never replaces errors with fake data (0.390833ms)
+✔ Web generated resources exactly match the JSON bundled by iOS (3.256583ms)
+✔ Web classifies the shared cross-language golden vectors consistently (1.478ms)
+✔ Demo Pro and Basic sessions have distinct patient scopes and immutable fixtures (1.418625ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 19
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 109.716292
+
+ RUN  v5.0.5 /private/tmp/carelink-upstream-20261029
+
+
+ Test Files  5 passed (5)
+      Tests  27 passed (27)
+   Start at  01:29:34
+   Duration  2.02s (environment 45%, tests 29%, setup 10%, transform 9%, import 7%)

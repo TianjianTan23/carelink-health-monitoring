@@ -6,7 +6,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from fastapi.testclient import TestClient
+from backend.test_support import AccountClient as TestClient, PASSWORDS
 
 
 _temp_directory = tempfile.TemporaryDirectory(prefix="carelink-test-")
@@ -26,6 +26,10 @@ class CareLinkApiTests(unittest.TestCase):
         cls.context.__exit__(None, None, None)
         _temp_directory.cleanup()
 
+    def setUp(self):
+        with connect() as db:
+            db.execute("DELETE FROM security_logins")
+
     def login(self, username: str, password: str) -> TestClient:
         client = TestClient(app)
         client.__enter__()
@@ -35,8 +39,8 @@ class CareLinkApiTests(unittest.TestCase):
         return client
 
     def test_credentials_determine_role(self) -> None:
-        patient = self.login("ttj", "041003")
-        nurse = self.login("wyn", "050403")
+        patient = self.login("ttj", PASSWORDS["ttj"])
+        nurse = self.login("wyn", PASSWORDS["wyn"])
         self.assertEqual(patient.get("/api/session").json()["role"], "patient")
         self.assertEqual(nurse.get("/api/session").json()["role"], "clinician")
         self.assertEqual(self.client.post("/api/login", json={"username": "ttj", "password": "wrong"}).status_code, 401)
@@ -59,7 +63,7 @@ class CareLinkApiTests(unittest.TestCase):
         self.assertIsInstance(payload["confidence"], float)
         self.assertEqual({item["parameter"] for item in payload["abnormal_params"]}, {"heart_rate_bpm", "temperature_c", "fall_detected"})
 
-        nurse = self.login("wyn", "050403")
+        nurse = self.login("wyn", PASSWORDS["wyn"])
         predictions = nurse.get("/api/patients/ttj/predictions").json()
         self.assertEqual(predictions[0]["result"]["label"], payload["label"])
         self.assertEqual(predictions[0]["confidence"], payload["confidence"])
@@ -96,8 +100,8 @@ class CareLinkApiTests(unittest.TestCase):
 
     def test_patient_cannot_acknowledge_but_nurse_can(self) -> None:
         self.client.post("/sensor-data", json={"device_id": "esp32-test", "heart_rate_bpm": 145, "object_temp_c": 40, "fall_detected": True})
-        patient = self.login("ttj", "041003")
-        nurse = self.login("wyn", "050403")
+        patient = self.login("ttj", PASSWORDS["ttj"])
+        nurse = self.login("wyn", PASSWORDS["wyn"])
         active_alerts = [item for item in patient.get("/api/alerts").json() if item["conditionActive"] and item["status"] == "new"]
         alert_id = active_alerts[0]["id"]
         self.assertEqual(patient.post(f"/api/alerts/{alert_id}/acknowledgement").status_code, 403)
@@ -110,7 +114,7 @@ class CareLinkApiTests(unittest.TestCase):
         old_time = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
         with connect() as connection:
             connection.execute("UPDATE readings SET created_at=?", (old_time,))
-        patient = self.login("ttj", "041003")
+        patient = self.login("ttj", PASSWORDS["ttj"])
         alerts = patient.get("/api/alerts").json()
         self.assertTrue(any(item["type"] == "network_failure" for item in alerts))
 

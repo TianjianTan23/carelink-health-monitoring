@@ -1,0 +1,7 @@
+Android emulator 37.2.12, AOSP Android 15 / API 35, arm64-v8a.
+Target: emulator-5556 (isolated CareLink_Test AVD).
+sys.boot_completed: 1
+CareLink-debug.apk: adb install succeeded.
+Runtime instrumentation: 15 checks passed.
+Native UI visual inspection: not completed; desktop UI automation could not attach to the standalone emulator window.
+Physical phone and KY-039 tests: not performed.

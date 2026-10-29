@@ -1,6 +1,8 @@
 import Foundation
 
 struct APIEndpoints: Codable {
+    var login: String? = nil
+    var logout: String? = nil
     var session: String
     var patients: String
     var patient: String
@@ -20,14 +22,14 @@ struct ServiceConfiguration: Codable {
         if mode == .live {
             guard apiConfirmed, let url = URL(string: baseUrl), ["http", "https"].contains(url.scheme ?? ""), url.host != nil, url.user == nil, url.password == nil, url.query == nil, url.fragment == nil else { throw ServiceError.configuration }
         }
-        for path in [endpoints.session,endpoints.patients,endpoints.patient,endpoints.readings,endpoints.predictions,endpoints.alerts,endpoints.acknowledge] {
+        for path in [endpoints.session,endpoints.patients,endpoints.patient,endpoints.readings,endpoints.predictions,endpoints.alerts,endpoints.acknowledge] + [endpoints.login, endpoints.logout].compactMap({ $0 }) {
             guard path.hasPrefix("/"), !path.hasPrefix("//"), !path.contains("://") else { throw ServiceError.configuration }
         }
     }
 }
 enum WireValidation {
     static func prediction(_ value: Prediction) throws {
-        guard ["not_connected","pending","available","failed","unavailable"].contains(value.state), value.confidence?.isFinite != false else { throw ServiceError.invalidResponse }
+        guard ["not_connected","pending","available","failed","unavailable"].contains(value.state), value.confidence?.isFinite != false, value.confidence.map({ (0...1).contains($0) }) != false else { throw ServiceError.invalidResponse }
     }
     static func reading(_ value: Reading) throws {
         guard !value.patientId.isEmpty, !value.deviceId.isEmpty, ["mock","device","backend"].contains(value.source) else { throw ServiceError.invalidResponse }
@@ -46,7 +48,7 @@ enum WireValidation {
     }
 }
 
-// Implements a PROPOSED contract only; no endpoint is assumed to exist on the team's server.
+// Implements the authenticated CareLink FastAPI contract.
 // Transport is injectable for tests. Production uses URLSession; never substitutes fixtures.
 @MainActor
 final class LiveApiService: CareService {
@@ -62,8 +64,11 @@ final class LiveApiService: CareService {
         guard configuration.mode == .live else { throw ServiceError.configuration }
         self.configuration = configuration; self.clock = clock
         var displayRules = rules; displayRules.staleAfterSeconds = configuration.staleAfterSeconds; self.rules = displayRules
+        let sessionConfiguration = URLSessionConfiguration.ephemeral
+        sessionConfiguration.requestCachePolicy = .reloadIgnoringLocalCacheData
+        let httpSession = URLSession(configuration: sessionConfiguration)
         self.transport = transport ?? { request in
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await httpSession.data(for: request)
             guard let http = response as? HTTPURLResponse else { throw ServiceError.invalidResponse }
             return (data,http)
         }
@@ -72,12 +77,13 @@ final class LiveApiService: CareService {
         let safe = id?.addingPercentEncoding(withAllowedCharacters: CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_"))) ?? ""
         return template.replacingOccurrences(of: "{id}", with: safe)
     }
-    private func request<T: Decodable>(_ path: String, method: String = "GET", empty: T? = nil) async throws -> T {
+    private func request<T: Decodable>(_ path: String, method: String = "GET", body: Data? = nil, empty: T? = nil) async throws -> T {
         let base = configuration.baseUrl.hasSuffix("/") ? String(configuration.baseUrl.dropLast()) : configuration.baseUrl
         guard let url = URL(string: base + path) else { throw ServiceError.configuration }
         var request = URLRequest(url: url, timeoutInterval: 8)
         request.httpMethod = method; request.setValue("application/json", forHTTPHeaderField: "Accept")
-        if method == "POST" { request.httpBody = Data("{}".utf8); request.setValue("application/json", forHTTPHeaderField: "Content-Type") }
+        if method == "POST" { request.httpBody = body ?? Data("{}".utf8); request.setValue("application/json", forHTTPHeaderField: "Content-Type") }
+        if method != "GET", let token = session?.csrfToken { request.setValue(token, forHTTPHeaderField: "X-CSRF-Token") }
         let pair: (Data,HTTPURLResponse)
         do { pair = try await transport(request) } catch let error as ServiceError { throw error } catch { throw ServiceError.network }
         let (data,response) = pair
@@ -86,6 +92,18 @@ final class LiveApiService: CareService {
         do { return try WireJSON.decoder().decode(T.self, from: data) } catch { throw ServiceError.invalidResponse }
     }
     private func allowed(_ id: String) throws { guard session?.patientIds.contains(id) == true else { throw ServiceError.forbidden } }
+    func authenticate(username: String, password: String) async throws -> Session {
+        let body = try JSONSerialization.data(withJSONObject: ["username": username, "password": password])
+        let value: Session = try await request(configuration.endpoints.login ?? "/api/login", method: "POST", body: body)
+        guard ["clinician", "patient", "family"].contains(value.role), value.mode != .pro || value.role == "clinician" else { throw ServiceError.invalidResponse }
+        session = value
+        return value
+    }
+    func logout() async {
+        struct SignedOut: Decodable { let status: String }
+        let _: SignedOut? = try? await request(configuration.endpoints.logout ?? "/api/logout", method: "POST")
+        session = nil
+    }
     func getSession(mode: AppMode) async throws -> Session {
         let value: Session = try await request(configuration.endpoints.session)
         guard ["clinician","family","patient"].contains(value.role), value.mode != .pro || value.role == "clinician" else { throw ServiceError.invalidResponse }
@@ -104,7 +122,7 @@ final class LiveApiService: CareService {
     }
     func getHistory(patientID: String) async throws -> [Reading] {
         try allowed(patientID)
-        let values: [Reading] = try await request(path(configuration.endpoints.readings,id:patientID),empty:[])
+        let values: [Reading] = try await request(path(configuration.endpoints.readings,id:patientID).replacingOccurrences(of: "minutes=1440", with: "minutes=10"),empty:[])
         for r in values { guard r.patientId == patientID else { throw ServiceError.invalidResponse }; try WireValidation.reading(r) }
         let now = clock()
         return values.filter { $0.measuredAt >= now.addingTimeInterval(-600) && $0.measuredAt <= now.addingTimeInterval(5) }.sorted { $0.measuredAt > $1.measuredAt }
@@ -134,9 +152,12 @@ typealias APICareService = LiveApiService
 
 @MainActor
 enum CareServiceFactory {
-    static func make(bundle: Bundle = .main) throws -> CareService {
+    static func make(bundle: Bundle = .main, baseURL: String? = nil) throws -> CareService {
         guard let url = bundle.url(forResource:"carelink-config",withExtension:"json") else { throw ServiceError.missingResource("carelink-config") }
-        let config = try WireJSON.decoder().decode(ServiceConfiguration.self,from:Data(contentsOf:url))
+        var config = try WireJSON.decoder().decode(ServiceConfiguration.self,from:Data(contentsOf:url))
+        if config.mode == .live {
+            config.baseUrl = baseURL ?? UserDefaults.standard.string(forKey: "carelink-server-url") ?? (config.baseUrl.isEmpty ? "http://127.0.0.1:8000" : config.baseUrl)
+        }
         try config.validate()
         if config.mode == .mock { return try MockDataService(bundle:bundle) }
         guard let rulesURL = bundle.url(forResource:"demo-rules",withExtension:"json") else { throw ServiceError.missingResource("demo-rules") }

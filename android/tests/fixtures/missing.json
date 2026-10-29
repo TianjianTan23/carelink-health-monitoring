@@ -1,0 +1,72 @@
+{
+  "patientId": "ttj",
+  "deviceId": "android-synthetic-test",
+  "measuredAt": "2026-10-29T03:51:03.585844+00:00",
+  "receivedAt": "2026-10-29T03:51:03.585844+00:00",
+  "connected": true,
+  "metrics": {
+    "hr": {
+      "value": null,
+      "quality": "unavailable",
+      "available": false,
+      "displayValue": null,
+      "held": false,
+      "lastValidAt": null,
+      "sampleId": "4",
+      "signalState": "ACQUIRING",
+      "signalQuality": null,
+      "sampleCount": null,
+      "gapCount": null
+    },
+    "temp": {
+      "value": 36.6,
+      "quality": "good",
+      "available": true
+    }
+  },
+  "fall": {
+    "active": false,
+    "quality": "good",
+    "eventAt": null
+  },
+  "raw": {
+    "accel_m_s2": null,
+    "gyro_deg_s": null,
+    "ir": null,
+    "red": null,
+    "object_temperature_c": 36.6,
+    "ambient_temperature_c": null
+  },
+  "ai": {
+    "state": "unavailable",
+    "id": "prediction-4",
+    "patientId": "ttj",
+    "predictedAt": "2026-10-29T03:51:03.585844+00:00",
+    "inputsMeasuredAt": "2026-10-29T03:51:03.585844+00:00",
+    "model": "logistic_regression",
+    "modelVersion": "2026-10-22T03:16:07.264424+00:00",
+    "result": {
+      "label": null,
+      "abnormal_params": [
+        {
+          "parameter": "heart_rate_bpm",
+          "kind": "missing_data",
+          "reason": "Heart rate is missing."
+        }
+      ]
+    },
+    "confidence": null,
+    "confidenceMeaning": "No model output because required sensor data was missing or invalid.",
+    "source": "backend"
+  },
+  "source": "backend",
+  "assessment": {
+    "level": "unknown",
+    "reasons": [
+      "Heart rate is missing."
+    ],
+    "assessedAt": "2026-10-29T03:51:03.585844+00:00",
+    "ruleSetId": "logistic_regression:2026-10-22T03:16:07.264424+00:00",
+    "origin": "backend"
+  }
+}
