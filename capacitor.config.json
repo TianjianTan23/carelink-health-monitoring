@@ -1,0 +1,23 @@
+{
+  "appId": "com.carelink.coursework",
+  "appName": "CareLink",
+  "webDir": "build-android",
+  "server": {
+    "androidScheme": "https",
+    "hostname": "localhost",
+    "cleartext": false
+  },
+  "android": {
+    "allowMixedContent": false,
+    "webContentsDebuggingEnabled": false
+  },
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": false
+    },
+    "CapacitorCookies": {
+      "enabled": false
+    }
+  },
+  "loggingBehavior": "none"
+}

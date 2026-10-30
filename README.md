@@ -1,197 +1,83 @@
-# CareLink Health Monitoring
+# CareLink — ESP32, Mac gateway, Web and Android
 
-CareLink now combines the ESP32 sensor stream, SQLite storage, a trained classifier, rule-based abnormal-parameter attribution, authenticated role views, alert history, and a React dashboard.
+CareLink receives real sensor data from an ESP32, stores readings and alerts in a local FastAPI/SQLite gateway, and shows the same patient data in a Web dashboard and an Android app. This repository contains the complete application source, dependency locks, Android Gradle wrapper, firmware source, public configuration examples, tests, and a signed Android APK. The iOS source is retained. Private identities and the currently running database are backed up **locally only**; they are deliberately absent from GitHub.
 
-The active monitoring scope is deliberately limited to the three signals that the hardware actually supplies:
-
-- heart rate
-- temperature
-- fall detection
-
-SpO2 is not displayed or used for classification in the new React/FastAPI flow.
-
-## Local accounts
-
-These are coursework-only local accounts. The selected role comes from the account on the server; it cannot be chosen in the browser.
-
-| Role | ID | Access |
-| --- | --- | --- |
-| Patient | Provided separately | Own patient record only; cannot acknowledge alerts |
-| Nurse | Provided separately | Assigned patients; may acknowledge alerts |
-
-The login page does not display or prefill credentials, and the password input cannot be switched to plain text. The FastAPI service stores only salted PBKDF2-SHA256 password hashes; override them with `CARELINK_PATIENT_PASSWORD_HASH` and `CARELINK_NURSE_PASSWORD_HASH` when accounts change.
-
-Both roles can view readings, history, charts, classifications, confidence, abnormal parameters, alert history, and settings. The patient page is scoped to the signed-in patient's own data.
-
-## Run the complete live system on macOS
-
-The checked-in configuration uses `live` mode. It does not load the mock
-patients or generate changing values in the browser. From a fresh clone, run:
-
-```sh
-npm start
-```
-
-This single command creates `.venv` when necessary, installs the Python and
-Node dependencies, builds the React UI, and starts FastAPI on
-`0.0.0.0:8000`. Keep that Terminal window open and visit:
+## System layout
 
 ```text
-http://127.0.0.1:8000
+ESP32 pulse/MLX90614/MPU6050 → HTTPS + HMAC /sensor-data → Mac FastAPI gateway
+                                                        ├→ SQLite readings and alerts
+                                                        ├→ Web dashboard (same HTTPS origin)
+                                                        └→ Android native HTTPS client
 ```
 
-The dashboard requests fresh API data every second with browser caching
-disabled. A new clone starts with an empty SQLite database, so values cannot
-change until a sensor producer posts snapshots to `/sensor-data`.
+- `backend/`: FastAPI routes, authentication, model, durable nonce ledger and write control.
+- `src/`, `public/`, `shared/`, `models/`: React/Vite Web interface and shared data contracts.
+- `android/`: Capacitor Android project with a native OkHttp API plugin and Keystore session vault.
+- `firmware/elder_sensors/`: ESP32 sketch, signing logic and **placeholder** headers. The analog pulse sensor does not measure SpO₂; missing SpO₂ is shown as unavailable.
+- `ios/`: retained iOS source; current end-to-end hardware verification is for Web and Android.
+- `releases/CareLink-Android-release.apk`: signed installable Android build for the current gateway CA. The signing identity stays local; building from a new clone creates a different signing identity, so it cannot update this APK in place.
+- `API_CONTRACT.md`: API and data behavior.
 
-### Verify real-time updates without hardware
+## Run a fresh, independent system
 
-The coursework permits synthetic sensor data. In a second Terminal window,
-run this separate input tool to exercise the real FastAPI, trained model,
-SQLite tables, alert logic and live UI:
-
-```sh
-npm run simulate:sensors
-```
-
-It cycles through normal, warning and critical readings once per second. Stop
-it with `Ctrl+C`. This is an explicit test producer; the UI and backend remain
-in live mode. You can also select one state:
-
-```sh
-npm run simulate:sensors -- --scenario=normal
-npm run simulate:sensors -- --scenario=warning
-npm run simulate:sensors -- --scenario=critical
-```
-
-### Connect the physical ESP32
-
-Copy `firmware/elder_sensors/secrets.example.h` to the ignored `secrets.h`,
-then set `SERVER_URL` to the LAN IP printed by `npm start`. The URL must end in
-`/sensor-data`. Recompile and upload the sketch whenever the gateway Mac or
-network changes.
-
-Before opening the UI, verify that the API is running:
-
-```sh
-curl http://127.0.0.1:8000/health
-```
-
-Then watch the API Terminal while the ESP32 is running. It must receive a new
-`POST /sensor-data` repeatedly. If no POST arrives, the UI correctly retains
-the last SQLite record and eventually marks it stale; it must not invent new
-measurements.
-
-### Manual development setup
-
-From this repository directory, install and start the API:
-
-```sh
-python3 -m venv .venv
-.venv/bin/pip install -r backend/requirements.txt
-.venv/bin/python -m uvicorn backend.app:app --host 0.0.0.0 --port 8000
-```
-
-In a second Terminal window, install and start the React development UI with
-hot reload:
+Requirements: Node.js 22.19+, Python 3.11/3.12, OpenSSL, Android JDK 21 + SDK 36 for rebuilding the APK, and Arduino IDE/CLI with the ESP32 core and sketch libraries for hardware. On a fresh machine, run from the repository root:
 
 ```sh
 npm ci
-npm run dev
+python3.12 -m venv .venv
+.venv/bin/python -m pip install -r backend/requirements-demo.txt
+npm run build
+npm run gateway:prepare -- --confirm-new-identity
+npm run gateway:accounts
+npm run gateway:address -- --lan-ip YOUR_MAC_LAN_IP --confirm-service-stopped
+npm run gateway:check
+npm run gateway:start
 ```
 
-Open [http://127.0.0.1:5173](http://127.0.0.1:5173). Vite forwards `/api`, `/sensor-data`, and `/health` to the FastAPI process on port 8000.
-
-The one-command `npm start` path above is the preferred production-style local
-run. Its underlying manual commands are:
+`gateway:prepare` creates a **new** device identity, HMAC secret, root CA, account store, readings database and nonce ledger in ignored `.coursework/hardware-gateway/`. Run it only for a genuinely new installation; it refuses an existing directory. `gateway:accounts` prompts for local account passwords without printing them. Replace `YOUR_MAC_LAN_IP` with the Mac address visible to the phone and ESP32. `gateway:address` requires the gateway to be stopped and updates the server certificate and generated firmware endpoint without resetting the ledger. The gateway serves Web and API together on HTTPS port 19443. Verify it with:
 
 ```sh
-npm run build
-.venv/bin/python -m uvicorn backend.app:app --host 0.0.0.0 --port 8000
+curl --cacert .coursework/hardware-gateway/tls/root.crt https://localhost:19443/health
 ```
 
-Then open [http://127.0.0.1:8000](http://127.0.0.1:8000). FastAPI serves the generated React build as well as the API.
+For the ESP32, open `.coursework/hardware-gateway/firmware/elder_sensors/elder_sensors.ino`, fill the **local** `secrets.h` Wi-Fi placeholders, choose the actual board and port, then flash with Arduino IDE. This generated private sketch carries matching device credentials, gateway endpoint and public CA. Observe `HTTPS POST status: 200` at 115200 baud and confirm advancing readings in both clients. Never use the example credential headers as a real identity.
 
-If another older sensor server is already using port 8000, stop it before
-starting this API. The ESP32 and the computer must be on the same network, and
-the ESP32 upload URL must be `http://<Mac-LAN-IP>:8000/sensor-data`;
-`127.0.0.1` only works from the Mac itself. Each team member has a different
-LAN IP, so copying another member's `secrets.h` will not work.
+For Android, install the included APK or build one with `npm run android:apk` (set `JAVA_HOME` and `ANDROID_HOME` if needed). Enter `https://YOUR_MAC_LAN_IP:19443` in the app. Import the matching public `.coursework/hardware-gateway/tls/root.crt` as a user CA on the phone, or build a new APK with the matching public CA in `android/app/src/main/res/raw/carelink_gateway_ca.crt`. The certificate must include the API address in its SAN; TLS verification remains enabled. With ADB over USB, `adb reverse tcp:19443 tcp:19443` permits the app's explicit `https://127.0.0.1:19443` endpoint. Keep the reverse mapping active while testing. The included APK has the CA of the current installation, so a fresh gateway with a different CA needs its own CA trust setup. Web access uses `https://YOUR_MAC_LAN_IP:19443/`.
 
-## Sensor input
+`npm run android:apk` writes `.coursework/deliverables/CareLink-integrated-release.apk`. Keep `.coursework/signing/` private if you want later APKs to update an existing installation. A different signing key requires a separate install; back up app data first if it matters.
 
-The ESP32 continues to post a JSON snapshot to:
+## Encryption and security design (for the group report)
 
-```text
-POST /sensor-data
-```
+| Layer | Implementation | What it protects |
+|---|---|---|
+| Transport | HTTPS/TLS from ESP32, Web and Android to the Mac gateway; CA chain, expiry and host/IP SAN checks remain enabled. Android denies cleartext traffic. | Readings, passwords and sessions in transit; helps detect a forged gateway. |
+| Android session at rest | The native `SessionVault` encrypts the opaque session token with AES-GCM using an Android Keystore key. The nonce/IV and ciphertext are kept in private app preferences; the key is not exported to JavaScript. | The stored session token on the phone. |
+| Password storage | The server stores Argon2id hashes with per-password salt and bounded verification work. Older PBKDF2-SHA256 hashes migrate on a successful login. | Password verification without storing plaintext passwords. **Hashing is not reversible encryption.** |
+| Browser/session boundary | The gateway issues an opaque, revocable 8-hour session token in a `Secure`, `HttpOnly`, `SameSite=Lax` cookie. Only a token hash is stored server-side. Web requests use same-origin checks; mutating JSON requests require `X-CareLink-CSRF: 1`. | Session misuse and cross-site request forgery. |
+| Android request boundary | The native OkHttp client uses `CookieJar.NO_COOKIES`, stores the cookie only in its Keystore-backed vault, and does not expose token or response headers to the WebView. It sends the CSRF header on POST and rejects redirects and non-HTTPS API origins. | Accidental token copying into WebView storage and insecure API routing. |
+| ESP32 device authentication | Each POST signs a seven-line canonical request with HMAC-SHA256 over method, path, device ID, timestamp, random nonce and SHA-256 body digest. The gateway checks the API key, signature and a ±60-second timestamp window. | Forged or modified uploads. HMAC authenticates the request; it does **not** encrypt it. TLS supplies confidentiality. |
+| Replay protection | A durable SQLite nonce ledger reserves each accepted nonce, then guarded writes commit readings and alerts. Replayed nonces are rejected; missing/corrupt ledger state fails closed. | Duplicate uploads and replay attacks across restarts. |
 
-The backend accepts the existing nested or top-level forms for:
+Relevant implementation: `backend/web_auth.py`, `backend/web_security.py`, `backend/device_auth.py`, `backend/nonce_ledger.py`, `backend/ledger_control.py`, `android/app/src/main/java/com/carelink/coursework/SessionVault.java`, `CareLinkApiPlugin.java`, `android/app/src/main/res/xml/network_security_config.xml`, and `firmware/elder_sensors/device_signing.h`.
 
-- `heart_rate_bpm`, `heart_rate_display_bpm`, or `heart_rate.bpm`
-- `object_temp_c`, `mlx90614.object_temp_c`, or `temperature`
-- `fall_detected`, `mpu6050.fall_detected`, or `alarm`
+**Scope limit:** the gateway's SQLite files are not encrypted at rest by this code. Their protection depends on local filesystem permissions and the Mac's disk encryption. The `.coursework/hardware-gateway/` directory contains live account hashes, readings, private keys, device credentials and nonce state and must never be posted to GitHub. Likewise, `firmware/**/secrets.h`, `device_auth.h`, `gateway_ca.h`, `.secrets/`, `.coursework/signing/`, APK signing keystores and private CA keys are excluded. The bundled Android CA certificate is public, not a private key.
 
-Each accepted snapshot is saved in the SQLite `readings` table. The dashboard retrieves the current reading, full 24-hour history, and the heart-rate and temperature chart series from this table.
+## Current behavior and checks
 
-The corresponding Arduino sketch is in `firmware/elder_sensors`. Its buzzer follows only the backend model result: `warning` and `critical` sound the buzzer; every other state turns it off. Copy `secrets.example.h` to the ignored `secrets.h` and enter the Mac's current local address before compiling.
-
-## Classification and attribution
-
-For a complete, physically valid sample, the trained logistic-regression artifact at `backend/ml/artifacts/health_classifier.joblib` supplies:
-
-- `label`: exactly `normal`, `warning`, or `critical`
-- `confidence`: the probability assigned to the selected model class
-
-A separate rule-based attribution layer supplies `abnormal_params`. It explains which observed parameter is abnormal without replacing the model's combined classification. For example:
-
-```json
-{
-  "label": "critical",
-  "confidence": 0.97,
-  "abnormal_params": [
-    {"parameter": "fall_detected", "value": true, "reason": "A fall was detected."}
-  ]
-}
-```
-
-Missing or physically invalid data is never sent through the classifier and is never replaced by a made-up value. In that case `label` and `confidence` are `null`, `validation_errors` describes the problem, and a data-quality alert is stored.
-
-## Alerts and SQLite
-
-The default database file is `backend/carelink.db`. Set `CARELINK_DATABASE_PATH` to use another path.
-
-The database contains:
-
-- `readings`: raw snapshots, validated values, model output, attribution, and timestamps
-- `alerts`: clinical, missing-data, invalid-reading, and network-failure alerts
-
-A partial unique index prevents more than one unresolved alert for the same patient and condition. Repeated occurrences update the existing alert and increment `occurrence_count`. When a later reading clears the condition, the unresolved alert is marked resolved instead of silently disappearing.
-
-## API summary
-
-- `POST /api/login`, `POST /api/logout`, `GET /api/session`
-- `GET /api/patients`, `GET /api/patients/{patient_id}`
-- `GET /api/patients/{patient_id}/readings?minutes=1440`
-- `GET /api/patients/{patient_id}/predictions`
-- `GET /api/alerts`
-- `POST /api/alerts/{alert_id}/acknowledgement`
-- `POST /api/classify`
-- `POST /sensor-data`
-- `GET /health`
-
-Authentication uses an HttpOnly local session cookie. Authorization is enforced again on the API, so hiding a button is not the only protection.
-
-## Verification
+The real sensor normally uploads about once per second. Heart rate needs a stable pulse signal; the interface retains the most recent valid value for up to six seconds while contact is plausible, then shows the missing-value dash if no valid measurement arrives. History requests allow the larger real response size and refresh periodically. A value must still come from an actual saved reading. The current firmware uses an analog pulse sensor, MLX90614 and MPU6050; it does not produce genuine SpO₂.
 
 ```sh
 npm test
 npm run build
-.venv/bin/python -m unittest backend.test_api -v
+.venv/bin/python -m unittest backend.test_local_gateway -v
+npm run test:firmware
+npm run check:firmware
+npm run android:apk
 ```
 
-The automated checks cover both account roles, route visibility, chart/history rendering, no-SpO2 rendering, model output and rule attribution, invalid/missing data, alert deduplication, network-failure alerts, and nurse-only acknowledgement.
+`npm run check:firmware` is a compilation check with synthetic headers, not a physical upload. `npm run test:local-integration` additionally requires a configured Android emulator and local ports; it uses isolated test identities. Real-hardware validation requires an ESP32 and a phone on a reachable network or the ADB USB reverse route for the phone. `/health` alone only proves the gateway is running.
 
-## Deployment note
+## Packaging and restoration
 
-The two local accounts are suitable only for this coursework demonstration. Before any real deployment, use HTTPS, add a persistent session/identity provider, rotate credentials and the session secret, and perform a clinical and privacy review. This project is not a medical device.
+The GitHub branch and source ZIP include everything needed to **build and provision a new running system**, plus the current signed APK. Install dependencies and create a new private gateway as above. The ZIP does not carry `node_modules`, SDK/JDK, generated build caches or live private state. These are either reinstallable or unsafe to publish. The current installation's state has a separate local-only backup; recovering that exact identity requires its CA keys, device registry, account database, readings database and nonce/control state together. Do not initialize a fresh ledger against old device credentials or restore only one SQLite file. Stop writes and follow a coordinated restore procedure before using that backup; the online backup is a point-in-time copy per database, not an atomic snapshot across all files.

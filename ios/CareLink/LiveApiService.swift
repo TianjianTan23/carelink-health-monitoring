@@ -1,28 +1,43 @@
 import Foundation
 
 struct APIEndpoints: Codable {
-    var session: String
-    var patients: String
-    var patient: String
-    var readings: String
-    var predictions: String
-    var alerts: String
-    var acknowledge: String
+    var login: String = "/api/login"
+    var logout: String = "/api/logout"
+    var rotate: String = "/api/session/rotate"
+    var session: String; var patients: String; var patient: String; var readings: String
+    var predictions: String; var alerts: String; var acknowledge: String
+    enum CodingKeys: String,CodingKey { case login,logout,rotate,session,patients,patient,readings,predictions,alerts,acknowledge }
+    init(from decoder: Decoder) throws {
+        let c=try decoder.container(keyedBy:CodingKeys.self)
+        login=try c.decodeIfPresent(String.self,forKey:.login) ?? login
+        logout=try c.decodeIfPresent(String.self,forKey:.logout) ?? logout
+        rotate=try c.decodeIfPresent(String.self,forKey:.rotate) ?? rotate
+        session=try c.decode(String.self,forKey:.session);patients=try c.decode(String.self,forKey:.patients)
+        patient=try c.decode(String.self,forKey:.patient);readings=try c.decode(String.self,forKey:.readings)
+        predictions=try c.decode(String.self,forKey:.predictions);alerts=try c.decode(String.self,forKey:.alerts)
+        acknowledge=try c.decode(String.self,forKey:.acknowledge)
+    }
 }
 struct ServiceConfiguration: Codable {
-    var mode: DataMode
-    var baseUrl: String
-    var apiConfirmed: Bool
-    var staleAfterSeconds: Double
-    var endpoints: APIEndpoints
+    var mode: DataMode; var baseUrl: String; var apiConfirmed: Bool
+    var staleAfterSeconds: Double; var endpoints: APIEndpoints
+    var trustAnchorResource: String? = nil // Public DER root filename, never a private key.
+    static func origin(_ input: String) throws -> String {
+        guard let u=URLComponents(string:input),u.scheme == "https", let host=u.host,!host.isEmpty,!host.contains(where:{$0.isWhitespace || $0 == "\\" || $0 == "%"}),
+              u.user == nil,u.password == nil,u.fragment == nil,
+              u.port == nil || (1...65535).contains(u.port!) else { throw ServiceError.configuration }
+        return "https://" + (host.contains(":") && !host.hasPrefix("[") ? "["+host+"]" : host) + (u.port == nil || u.port == 443 ? "" : ":\(u.port!)")
+    }
     func validate() throws {
-        guard staleAfterSeconds > 0, staleAfterSeconds.isFinite else { throw ServiceError.configuration }
+        guard staleAfterSeconds > 0,staleAfterSeconds.isFinite else { throw ServiceError.configuration }
         if mode == .live {
-            guard apiConfirmed, let url = URL(string: baseUrl), ["http", "https"].contains(url.scheme ?? ""), url.host != nil, url.user == nil, url.password == nil, url.query == nil, url.fragment == nil else { throw ServiceError.configuration }
+            _ = try Self.origin(baseUrl)
+            guard apiConfirmed,let u=URLComponents(string:baseUrl),u.query == nil,["","/"].contains(u.path) else { throw ServiceError.configuration }
         }
-        for path in [endpoints.session,endpoints.patients,endpoints.patient,endpoints.readings,endpoints.predictions,endpoints.alerts,endpoints.acknowledge] {
-            guard path.hasPrefix("/"), !path.hasPrefix("//"), !path.contains("://") else { throw ServiceError.configuration }
+        for path in [endpoints.login,endpoints.logout,endpoints.rotate,endpoints.session,endpoints.patients,endpoints.patient,endpoints.readings,endpoints.predictions,endpoints.alerts,endpoints.acknowledge] {
+            guard path.hasPrefix("/api/"),!path.contains(".."),!path.contains("\\"),!path.contains("#"),!path.contains("%"),!path.contains("://") else { throw ServiceError.configuration }
         }
+        if let name=trustAnchorResource, name.range(of:"^[A-Za-z0-9_-]+\\.cer$",options:.regularExpression) == nil { throw ServiceError.configuration }
     }
 }
 enum WireValidation {
@@ -55,44 +70,163 @@ final class LiveApiService: CareService {
     let rules: DemoRules
     let configuration: ServiceConfiguration
     private let transport: Transport
+    private let gateway: SecureGatewayTransport?
     private let clock: () -> Date
     private var session: Session?
-    init(configuration: ServiceConfiguration, rules: DemoRules, clock: @escaping () -> Date = Date.init, transport: Transport? = nil) throws {
+    private var sessionToken: String?
+    private let credentials: SessionCredentialStore
+    private let origin: String
+    private var generation=0
+    private var authenticationBusy=false
+    init(configuration: ServiceConfiguration, rules: DemoRules, clock: @escaping () -> Date = Date.init,
+         credentials: SessionCredentialStore? = nil, anchorDER: Data? = nil, transport: Transport? = nil) throws {
         try configuration.validate()
         guard configuration.mode == .live else { throw ServiceError.configuration }
-        self.configuration = configuration; self.clock = clock
-        var displayRules = rules; displayRules.staleAfterSeconds = configuration.staleAfterSeconds; self.rules = displayRules
-        self.transport = transport ?? { request in
-            let (data, response) = try await URLSession.shared.data(for: request)
-            guard let http = response as? HTTPURLResponse else { throw ServiceError.invalidResponse }
-            return (data,http)
+        self.configuration=configuration;self.clock=clock;self.origin=try ServiceConfiguration.origin(configuration.baseUrl)
+        self.credentials=credentials ?? KeychainSessionStore()
+        var displayRules=rules;displayRules.staleAfterSeconds=configuration.staleAfterSeconds;self.rules=displayRules
+        if let injected=transport { self.gateway=nil;self.transport=injected }
+        else {
+            let gateway=try SecureGatewayTransport(origin:origin,anchorDER:anchorDER)
+            self.gateway=gateway;self.transport={ try await gateway.send($0) }
         }
     }
     private func path(_ template: String, id: String? = nil) -> String {
-        let safe = id?.addingPercentEncoding(withAllowedCharacters: CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_"))) ?? ""
-        return template.replacingOccurrences(of: "{id}", with: safe)
+        let safe=id?.addingPercentEncoding(withAllowedCharacters:CharacterSet.alphanumerics.union(CharacterSet(charactersIn:"-_"))) ?? ""
+        return template.replacingOccurrences(of:"{id}",with:safe)
+    }
+    private func stored() throws -> StoredSession? {
+        guard let value=try credentials.read(origin:origin) else { return nil }
+        guard value.expiresAt > clock(),value.token.range(of:"^cl_s1_[A-Za-z0-9_-]{43}$",options:.regularExpression) != nil else {
+            try credentials.remove(origin:origin);session=nil;sessionToken=nil;return nil
+        }
+        return value
+    }
+    // All stores and clients run on MainActor: compare/remove has no suspension.
+    private func removeCredential(matching token: String?) throws {
+        guard let token=token,try credentials.read(origin:origin)?.token == token else { return }
+        try credentials.remove(origin:origin)
+    }
+    private func send(_ path: String, method: String = "GET", body: Data? = nil, anonymous: Bool = false) async throws -> (Data,HTTPURLResponse) {
+        let version=generation
+        guard let url=URL(string:origin+path),try ServiceConfiguration.origin(url.absoluteString) == origin else { throw ServiceError.configuration }
+        var request=URLRequest(url:url,cachePolicy:.reloadIgnoringLocalCacheData,timeoutInterval:8)
+        request.httpMethod=method;request.httpShouldHandleCookies=false
+        request.setValue("application/json",forHTTPHeaderField:"Accept")
+        var suppliedToken: String? = try stored()?.token
+        if !anonymous {
+            guard let value=try stored() else { throw ServiceError.http(401) }
+            suppliedToken=value.token
+            request.setValue("carelink_session="+value.token,forHTTPHeaderField:"Cookie")
+        }
+        if method != "GET" {
+            request.httpBody=body ?? Data("{}".utf8)
+            request.setValue("application/json",forHTTPHeaderField:"Content-Type")
+            request.setValue("1",forHTTPHeaderField:"X-CareLink-CSRF")
+            request.setValue(origin,forHTTPHeaderField:"Origin")
+        }
+        let result:(Data,HTTPURLResponse)
+        do { result=try await transport(request) }
+        catch let error as ServiceError { throw error }
+        catch { throw ServiceError.network }
+        guard version == generation else { throw ServiceError.sessionChanged }
+        guard result.1.url == request.url else { throw ServiceError.invalidResponse }
+        if try stored()?.token != suppliedToken {
+            session=nil;sessionToken=nil;throw ServiceError.sessionChanged
+        }
+        if result.1.statusCode == 401 {
+            session=nil;sessionToken=nil;try removeCredential(matching:suppliedToken)
+        }
+        guard (200...299).contains(result.1.statusCode) else { throw ServiceError.http(result.1.statusCode) }
+        return result
     }
     private func request<T: Decodable>(_ path: String, method: String = "GET", empty: T? = nil) async throws -> T {
-        let base = configuration.baseUrl.hasSuffix("/") ? String(configuration.baseUrl.dropLast()) : configuration.baseUrl
-        guard let url = URL(string: base + path) else { throw ServiceError.configuration }
-        var request = URLRequest(url: url, timeoutInterval: 8)
-        request.httpMethod = method; request.setValue("application/json", forHTTPHeaderField: "Accept")
-        if method == "POST" { request.httpBody = Data("{}".utf8); request.setValue("application/json", forHTTPHeaderField: "Content-Type") }
-        let pair: (Data,HTTPURLResponse)
-        do { pair = try await transport(request) } catch let error as ServiceError { throw error } catch { throw ServiceError.network }
-        let (data,response) = pair
-        if response.statusCode == 204, let empty = empty { return empty }
-        guard (200...299).contains(response.statusCode) else { throw ServiceError.http(response.statusCode) }
-        do { return try WireJSON.decoder().decode(T.self, from: data) } catch { throw ServiceError.invalidResponse }
+        let (data,response)=try await send(path,method:method)
+        if response.statusCode == 204,let empty=empty { return empty }
+        guard let value=try? WireJSON.decoder().decode(T.self,from:data) else { throw ServiceError.invalidResponse }
+        return value
     }
-    private func allowed(_ id: String) throws { guard session?.patientIds.contains(id) == true else { throw ServiceError.forbidden } }
+    private func remember(_ response: HTTPURLResponse) throws -> String {
+        guard let url=response.url,try ServiceConfiguration.origin(url.absoluteString) == origin else { throw ServiceError.invalidResponse }
+        let fields=Dictionary(uniqueKeysWithValues:response.allHeaderFields.map { (String(describing:$0.key),String(describing:$0.value)) })
+        guard let raw=fields.first(where:{$0.key.lowercased()=="set-cookie"})?.value else { throw ServiceError.invalidResponse }
+        let attributes=raw.split(separator:";").dropFirst().map { $0.trimmingCharacters(in:.whitespaces).lowercased() }
+        let ages=attributes.filter { $0.hasPrefix("max-age=") }
+        guard raw.components(separatedBy:"carelink_session=").count == 2,
+              attributes.filter({$0 == "secure"}).count == 1,attributes.filter({$0 == "httponly"}).count == 1,
+              attributes.filter({$0.hasPrefix("samesite=")}).count == 1,attributes.filter({$0.hasPrefix("path=")}).count == 1,
+              ages.count == 1,let seconds=Int(ages[0].dropFirst(8)),(1...28800).contains(seconds),
+              attributes.contains("secure"),attributes.contains("httponly"),attributes.contains("samesite=lax"),
+              !attributes.contains(where:{$0.hasPrefix("domain=")}) else { throw ServiceError.invalidResponse }
+        let cookies=HTTPCookie.cookies(withResponseHeaderFields:fields,for:url).filter { $0.name == "carelink_session" }
+        guard cookies.count == 1,cookies[0].isSecure,cookies[0].isHTTPOnly,cookies[0].path == "/",
+              cookies[0].value.range(of:"^cl_s1_[A-Za-z0-9_-]{43}$",options:.regularExpression) != nil else { throw ServiceError.invalidResponse }
+        try credentials.write(StoredSession(token:cookies[0].value,expiresAt:clock().addingTimeInterval(Double(seconds))),origin:origin)
+        return cookies[0].value
+    }
+    private func beginAuthentication() throws {
+        guard !authenticationBusy else { throw ServiceError.authenticationBusy }
+        authenticationBusy=true;generation += 1
+    }
+    func authenticate(username: String, password: String, mode: AppMode) async throws -> Session {
+        try beginAuthentication();defer { authenticationBusy=false }
+        session=nil;sessionToken=nil
+        let previousToken=try stored()?.token
+        if previousToken != nil {
+            do { _ = try await send(configuration.endpoints.logout,method:"POST") }
+            catch { try removeCredential(matching:previousToken);throw error }
+        }
+        try removeCredential(matching:previousToken)
+        guard username.range(of:"^[A-Za-z0-9_.-]{1,64}$",options:.regularExpression) != nil,
+              !password.isEmpty,password.utf8.count <= 1024 else { throw ServiceError.http(401) }
+        let data=try JSONSerialization.data(withJSONObject:["username":username,"password":password])
+        // Login has no owned stored token to clean up on failure. send also
+        // checks that storage stayed unchanged before accepting the new cookie.
+        let (body,response)=try await send(configuration.endpoints.login,method:"POST",body:data,anonymous:true)
+        guard let value=try? WireJSON.decoder().decode(Session.self,from:body) else { throw ServiceError.invalidResponse }
+        try validateSession(value);sessionToken=try remember(response);session=value;return value
+    }
+    func restoreSession() async throws -> Session? {
+        session=nil;sessionToken=nil
+        guard try stored() != nil else { return nil }
+        do { return try await getSession(mode:.basic) }
+        catch ServiceError.http(401) { return nil }
+    }
+    func logout() async throws {
+        try beginAuthentication();defer { authenticationBusy=false }
+        session=nil;sessionToken=nil
+        let token=try stored()?.token
+        do {
+            if token != nil { _ = try await send(configuration.endpoints.logout,method:"POST") }
+            try removeCredential(matching:token)
+        } catch { try removeCredential(matching:token);throw error }
+    }
+    func rotateSession() async throws {
+        try beginAuthentication();defer { authenticationBusy=false }
+        let token=try stored()?.token
+        do { let (_,response)=try await send(configuration.endpoints.rotate,method:"POST");sessionToken=try remember(response) }
+        catch { session=nil;sessionToken=nil;try removeCredential(matching:token);throw error }
+    }
+    private func validateSession(_ value: Session) throws {
+        guard ["clinician","family","patient"].contains(value.role),value.mode != .pro || value.role == "clinician",
+              value.patientIds.count <= 256,value.patientIds.allSatisfy({!$0.isEmpty && $0.count <= 128}) else { throw ServiceError.invalidResponse }
+    }
+    private func requireCurrentIdentity() throws {
+        guard session != nil else { throw ServiceError.forbidden }
+        guard let token=sessionToken,try stored()?.token == token else {
+            session=nil;sessionToken=nil;throw ServiceError.http(401)
+        }
+    }
+    private func allowed(_ id: String) throws { try requireCurrentIdentity();guard session?.patientIds.contains(id) == true else { throw ServiceError.forbidden } }
     func getSession(mode: AppMode) async throws -> Session {
+        let sentToken=try stored()?.token
         let value: Session = try await request(configuration.endpoints.session)
-        guard ["clinician","family","patient"].contains(value.role), value.mode != .pro || value.role == "clinician" else { throw ServiceError.invalidResponse }
-        session = value; return value // ignores requested demo mode: role comes only from the server
+        guard try stored()?.token == sentToken else { throw ServiceError.sessionChanged }
+        try validateSession(value)
+        session = value;sessionToken=sentToken; return value // ignores requested demo mode: role comes only from the server
     }
     func getPatients() async throws -> [Patient] {
-        guard session != nil else { throw ServiceError.forbidden }
+        try requireCurrentIdentity()
         let values: [Patient] = try await request(configuration.endpoints.patients, empty: [])
         for p in values { try allowed(p.id); try WireValidation.patient(p) }
         return values
@@ -116,12 +250,13 @@ final class LiveApiService: CareService {
         return values
     }
     func getAlerts() async throws -> [Alert] {
-        guard session != nil else { throw ServiceError.forbidden }
+        try requireCurrentIdentity()
         let values: [Alert] = try await request(configuration.endpoints.alerts,empty:[])
         for a in values { try allowed(a.patientId); try WireValidation.alert(a) }
         return values
     }
     func acknowledgeAlert(id: String) async throws -> Alert {
+        try requireCurrentIdentity()
         guard session?.mode == .pro else { throw ServiceError.forbidden }
         let value: Alert = try await request(path(configuration.endpoints.acknowledge,id:id),method:"POST")
         try allowed(value.patientId); try WireValidation.alert(value)
@@ -141,6 +276,11 @@ enum CareServiceFactory {
         if config.mode == .mock { return try MockDataService(bundle:bundle) }
         guard let rulesURL = bundle.url(forResource:"demo-rules",withExtension:"json") else { throw ServiceError.missingResource("demo-rules") }
         let rules = try WireJSON.decoder().decode(DemoRules.self,from:Data(contentsOf:rulesURL))
-        return try LiveApiService(configuration:config,rules:rules)
+        var anchor: Data?
+        if let name=config.trustAnchorResource {
+            guard let resource=bundle.url(forResource:String(name.dropLast(4)),withExtension:"cer") else { throw ServiceError.missingResource("Public trust anchor") }
+            anchor=try Data(contentsOf:resource)
+        }
+        return try LiveApiService(configuration:config,rules:rules,anchorDER:anchor)
     }
 }

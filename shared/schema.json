@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://carelink.example/schema/v2-draft",
-  "title": "CareLink shared JSON contract v2 DRAFT — endpoints unconfirmed",
+  "title": "CareLink shared JSON contract v2 DRAFT \u2014 endpoints unconfirmed",
   "$defs": {
     "Metric": {
       "type": "object",
@@ -86,7 +86,6 @@
           "type": "object",
           "required": [
             "hr",
-            "spo2",
             "temp"
           ],
           "properties": {

@@ -37,3 +37,10 @@ test('patient-scoped scenarios, history windows, no fake AI and reset',async()=>
 test('API adapter propagates failures, never replaces errors with fake data',async()=>{
   const old=global.fetch;global.fetch=async()=>({ok:false,status:503});try{await assert.rejects(new ApiService().getPatients(),/API 503/);}finally{global.fetch=old;}
 });
+
+test('valid optional SpO2 remains safety-relevant without becoming a required sensor',()=>{
+ const r=makeReading('p001','normal',now);r.metrics.spo2={value:89.9,quality:'good'};
+ assert.equal(triage(r,DEFAULT_RULES,now).level,'red','valid severe SpO2 cannot be ignored by the display metric list');
+ delete r.metrics.spo2;assert.equal(triage(r,DEFAULT_RULES,now).level,'green','missing optional sensor does not invent a requirement');
+ r.metrics.spo2={value:80,quality:'good',available:false};assert.equal(triage(r,DEFAULT_RULES,now).level,'green','explicitly absent optional sensor is not a valid measurement');
+});

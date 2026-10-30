@@ -16,7 +16,7 @@ for p in swift:
  build=obj('build:'+p.name,f'isa = PBXBuildFile; fileRef = {ref};')
  source_refs.append(ref);source_build.append(build)
 for name in resources:
- ref=obj('ref:'+name,f'isa = PBXFileReference; lastKnownFileType = text.json; name = {quote(name)}; path = {quote("../shared/"+name)}; sourceTree = SOURCE_ROOT;')
+ ref=obj('ref:'+name,f'isa = PBXFileReference; lastKnownFileType = text.json; name = {quote(name)}; path = {quote(name if name == "carelink-config.json" else "../shared/"+name)}; sourceTree = SOURCE_ROOT;')
  build=obj('build:'+name,f'isa = PBXBuildFile; fileRef = {ref};')
  resource_refs.append(ref);resource_build.append(build)
 ref=obj('ref:assets','isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>";')
@@ -39,7 +39,7 @@ for name in ['Debug','Release']:
   'SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO','TARGETED_DEVICE_FAMILY = 1',
   'SWIFT_VERSION = 5.0','SWIFT_STRICT_CONCURRENCY = minimal','CODE_SIGN_STYLE = Automatic',
   'ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor','GENERATE_INFOPLIST_FILE = YES','INFOPLIST_KEY_CFBundleDisplayName = CareLink',
-  'INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES','INFOPLIST_KEY_UILaunchScreen_Generation = YES',
+  'INFOPLIST_KEY_NSLocalNetworkUsageDescription = "CareLink connects securely to your approved local gateway to show sensor readings."','INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES','INFOPLIST_KEY_UILaunchScreen_Generation = YES',
   'INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait',
   'CURRENT_PROJECT_VERSION = 1','MARKETING_VERSION = 1.0',
   'LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks"',

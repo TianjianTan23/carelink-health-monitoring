@@ -11,17 +11,17 @@ import sessions from '../shared/demo-sessions.json';
 async function loginAs(kind:'Patient'|'Nurse'){
   const user=userEvent.setup();
   render(<App service={new MockDataService()}/>);
-  await user.type(screen.getByLabelText('User ID'),kind==='Patient'?'ttj':'wyn');
-  await user.type(screen.getByLabelText('Password'),kind==='Patient'?'041003':'050403');
+  await user.type(screen.getByLabelText('User ID'),kind==='Patient'?'demo-patient':'demo-clinician');
+  await user.type(screen.getByLabelText('Password'),kind==='Patient'?'coursework-demo':'coursework-demo');
   await user.click(screen.getByRole('button',{name:'Sign in'}));
   await screen.findByRole('heading',{name:'Readings'});
   return user;
 }
 
-it('patient credentials open a patient-scoped view with every required section and no SpO2',async()=>{
+it('patient credentials open a patient-scoped view with every required section and optional SpO2',async()=>{
   const user=await loginAs('Patient');
   expect(screen.getByText('PATIENT VIEW')).toBeInTheDocument();
-  expect(screen.queryByText(/SpO/i)).not.toBeInTheDocument();
+  expect(screen.getByText('SpO₂')).toBeInTheDocument();
   for(const name of ['Readings','History','Charts','Classifications','Alert history','Settings'])expect(screen.getByRole('button',{name})).toBeInTheDocument();
   await user.click(screen.getByRole('button',{name:'History'}));await screen.findByRole('heading',{name:'History'});expect(await screen.findAllByRole('row')).toHaveLength(22);
   await user.click(screen.getByRole('button',{name:'Charts'}));expect(await screen.findByRole('heading',{name:'Heart rate'})).toBeInTheDocument();expect(screen.getByRole('heading',{name:'Temperature'})).toBeInTheDocument();
@@ -43,7 +43,7 @@ it('nurse credentials open the nurse workspace and permit alert acknowledgement'
 
 it('patient cannot acknowledge alerts',async()=>{
   const user=userEvent.setup();const service=new MockDataService();await service.getSession('basic');service.setScenario('p004','fall');render(<App service={service}/>);
-  await user.type(screen.getByLabelText('User ID'),'ttj');await user.type(screen.getByLabelText('Password'),'041003');await user.click(screen.getByRole('button',{name:'Sign in'}));await screen.findByRole('heading',{name:'Readings'});
+  await user.type(screen.getByLabelText('User ID'),'demo-patient');await user.type(screen.getByLabelText('Password'),'coursework-demo');await user.click(screen.getByRole('button',{name:'Sign in'}));await screen.findByRole('heading',{name:'Readings'});
   await user.click(screen.getByRole('button',{name:'Alert history'}));
   await screen.findByRole('heading',{name:'Alerts'});
   const cards=await screen.findAllByRole('button',{name:/p004|Xu Wangshu/});
@@ -55,7 +55,7 @@ it('patient cannot acknowledge alerts',async()=>{
 it('login validates missing and incorrect credentials',async()=>{
   const user=userEvent.setup();render(<App service={new MockDataService()}/>);
   await user.click(screen.getByRole('button',{name:'Sign in'}));expect(screen.getByRole('alert')).toHaveTextContent('Enter a user ID and password');
-  await user.type(screen.getByLabelText('User ID'),'ttj');await user.type(screen.getByLabelText('Password'),'wrong');await user.click(screen.getByRole('button',{name:'Sign in'}));
+  await user.type(screen.getByLabelText('User ID'),'demo-patient');await user.type(screen.getByLabelText('Password'),'wrong');await user.click(screen.getByRole('button',{name:'Sign in'}));
   expect(await screen.findByRole('alert')).toHaveTextContent('Invalid user ID or password');
 });
 
@@ -69,7 +69,7 @@ it('live API empty and network failure remain distinct without mock fallback',as
   });
   const service=new LiveApiService({...defaultConfig,mode:'live',apiConfirmed:true,baseUrl:'https://backend.example'},transport);
   render(<App service={service}/>);
-  await user.type(screen.getByLabelText('User ID'),'wyn');await user.type(screen.getByLabelText('Password'),'050403');await user.click(screen.getByRole('button',{name:'Sign in'}));
+  await user.type(screen.getByLabelText('User ID'),'demo-clinician');await user.type(screen.getByLabelText('Password'),'coursework-demo');await user.click(screen.getByRole('button',{name:'Sign in'}));
   await screen.findByText('No authorized patients');
   fail=true;await user.click(screen.getByRole('button',{name:'Refresh'}));
   await screen.findByText('Unable to load');
@@ -80,7 +80,24 @@ it('never displays account credentials and keeps the password masked',async()=>{
   const user=userEvent.setup();render(<App service={new MockDataService()}/>);
   expect(screen.getByLabelText('Password')).toHaveAttribute('type','password');
   expect(screen.queryByRole('button',{name:'Show'})).not.toBeInTheDocument();
-  expect(screen.queryByText(/041003|050403/)).not.toBeInTheDocument();
-  await user.type(screen.getByLabelText('User ID'),'ttj');await user.type(screen.getByLabelText('Password'),'041003');
+  expect(screen.queryByText(/synthetic-test-password|another-test-password/)).not.toBeInTheDocument();
+  await user.type(screen.getByLabelText('User ID'),'demo-patient');await user.type(screen.getByLabelText('Password'),'coursework-demo');
   await waitFor(()=>expect(screen.getByLabelText('Password')).toHaveAttribute('type','password'));
+});
+
+it('clears private views and reports an unconfirmed server logout',async()=>{
+ const user=userEvent.setup();
+ const service=new MockDataService();
+ vi.spyOn(service,'logout').mockRejectedValue(new Error('synthetic server failure'));
+ render(<App service={service}/>);
+ // Use the explicit mock session, never a real account credential.
+ vi.spyOn(service,'authenticate').mockResolvedValue(sessions.pro as Awaited<ReturnType<typeof service.authenticate>>);
+ await user.type(screen.getByLabelText('User ID'),'fixture');
+ await user.type(screen.getByLabelText('Password'),'synthetic-test-password');
+ await user.click(screen.getByRole('button',{name:'Sign in'}));
+ await screen.findByRole('heading',{name:'Readings'});
+ await user.click(screen.getByRole('button',{name:'Sign out'}));
+ expect(await screen.findByRole('heading',{name:'Sign in to CareLink'})).toBeInTheDocument();
+ expect(screen.getByRole('alert')).toHaveTextContent('Server session revocation could not be confirmed');
+ expect(screen.queryByRole('heading',{name:'Readings'})).not.toBeInTheDocument();
 });

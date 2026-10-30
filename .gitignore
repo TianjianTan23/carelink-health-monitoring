@@ -12,3 +12,35 @@ backend/*.db-shm
 backend/*.db-wal
 .env*
 firmware/**/secrets.h
+
+# Local TLS identities and machine trust artifacts
+.tls/
+*.key
+*.pem
+*.cer
+*.p12
+*.pfx
+firmware/**/gateway_ca.h
+ios/carelink-config.json
+
+# Separate HTTPS Web assets; do not replace running legacy HTTP assets
+build-https/
+
+# Per-device credentials and durable replay ledger
+.secrets/
+firmware/**/device_auth.h
+
+# Private local audit snapshots and diagnostics (never deployment inputs)
+audit-evidence-*/
+remediation-evidence-*/
+security-status-evidence-*/
+
+# Coursework-only tools, private signing, runtime data and generated APK assets
+.coursework/
+build-android/
+build-demo/
+*.keystore
+*.jks
+signing.properties
+work/
+*.before-*

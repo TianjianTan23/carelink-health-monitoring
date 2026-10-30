@@ -101,3 +101,40 @@ describe('LiveApiService proposed API requests',()=>{
   const api=new LiveApiService(liveConfig,fake({'/api/session':sessions.pro,'/api/patients/p004/readings?minutes=1440':history}));await api.getSession();const rows=await api.getReadings('p004');expect(rows).toHaveLength(3);expect(rows[0].measuredAt).toBe(history[2]!.measuredAt);
  });
 });
+
+describe('backend security compatibility',()=>{
+ it('sends the CSRF header and JSON on login, acknowledgement and logout',async()=>{
+  const transport=fake({'POST /api/login':sessions.pro,'POST /api/logout':{status:'signed_out'},'POST /api/alerts/alert-1/acknowledgement':{...alert(),status:'acknowledged',acknowledgedAt:new Date().toISOString()}});
+  const api=new LiveApiService(liveConfig,transport);
+  await api.authenticate('fixture','synthetic-test-password');
+  await api.acknowledgeAlert('alert-1');await api.logout();
+  for(const [,init] of transport.mock.calls){
+   expect(new Headers(init?.headers).get('X-CareLink-CSRF')).toBe('1');
+   expect(new Headers(init?.headers).get('Content-Type')).toBe('application/json');
+  }
+ });
+ it('does not report successful server logout on HTTP denial or network failure',async()=>{
+  for(const transport of [fake({}, {status:{'/api/logout':503}}),fake({}, {reject:['/api/logout']})]){
+   await expect(new LiveApiService(liveConfig,transport).logout()).rejects.toBeInstanceOf(Error);
+  }
+ });
+ it('forgets locally cached authorization immediately on HTTP 401',async()=>{
+  const transport=fake({'/api/session':sessions.pro},{status:{'/api/patients':401}});
+  const api=new LiveApiService(liveConfig,transport);await api.getSession();
+  await expect(api.getPatients()).rejects.toMatchObject({status:401});
+  const calls=transport.mock.calls.length;
+  await expect(api.getPatient('p004')).rejects.toMatchObject({code:'forbidden'});
+  expect(transport.mock.calls).toHaveLength(calls);
+ });
+ it('refuses plaintext API origins and insecure same-origin live pages',()=>{
+  expect(()=>validateConfig({...liveConfig,baseUrl:'http://gateway.example'})).toThrow();
+  expect(()=>validateConfig({...liveConfig,baseUrl:''})).toThrow();
+ });
+});
+
+it('rotation uses actual backend endpoint, CSRF and revalidates the server session',async()=>{
+ const transport=fake({'POST /api/session/rotate':{status:'rotated'},'/api/session':sessions.pro});
+ const api=new LiveApiService(liveConfig,transport);await api.getSession();await api.rotateSession();
+ expect(transport).toHaveBeenCalledWith(expect.stringContaining('/api/session/rotate'),expect.objectContaining({method:'POST',headers:expect.objectContaining({'X-CareLink-CSRF':'1'})}));
+ expect(transport.mock.calls.at(-1)?.[0]).toBe('https://backend.example/api/session');
+});

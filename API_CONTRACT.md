@@ -1,73 +1,58 @@
-# CareLink API 契约草案 v2
+# CareLink 本地统一 API 契约
 
-**状态：待组员确认，不代表 FastAPI 已实现以下端点。** 本轮没有修改组员的 FastAPI 或 SQLite，也没有连接真实患者、设备或 AI。客户端实现的是此草案的通信与校验逻辑，测试使用注入的响应。
+本契约对应本分支 `backend/app.py` 及 `src/data/LiveApiService.ts`，已用隔离HTTPS及Android模拟器执行。真实ESP32/手机仍需现场验收。Web与Android请求同一个网关origin，读取同一份`CARELINK_DATABASE_PATH`中的记录；不另建移动端数据源。
 
-## 数据与接口文件
+|方法/路径|实际行为|
+|---|---|
+|GET `/health`|进程健康，不等于传感器已连接|
+|POST `/sensor-data`|HTTPS + 每设备API key + HMAC + ±60s时间窗 + 原子nonce；成功后才存readings/alerts|
+|POST `/api/login`|`{username,password}`；Argon2id/兼容迁移；返回Session身份，Set-Cookie设置opaque Session|
+|GET `/api/session`|验证服务器Session、过期/撤销/账号状态，返回身份和患者范围|
+|POST `/api/session/rotate`|`{}`；替换Cookie并立即使旧Token无效，不延长绝对期限|
+|POST `/api/logout`|`{}`；撤销Session并清Cookie|
+|GET `/api/gateway`|认证后返回网关模式、接收路径、服务器患者映射和自动模拟器标记，不返回秘密或数据库路径|
+|GET `/api/patients`|授权患者列表，reading为最新保存记录或null|
+|GET `/api/patients/{id}`|授权范围内患者详情|
+|GET `/api/patients/{id}/readings?minutes=1440`|指定窗口历史；当前最多2000条（不是完整高频24小时导出接口）|
+|GET `/api/patients/{id}/predictions`|最近100条对应的模型结果，无效输入不伪造正常分类|
+|GET `/api/alerts`|授权患者告警；可产生连接状态告警，因此也受写入gate保护|
+|POST `/api/alerts/{id}/acknowledgement`|`{}`；仅护士且有患者权限；确认不清除设备跌倒状态|
+|POST `/api/classify`|受认证的既有分类接口|
 
-- `shared/schema.json`：Patient、SensorReading（兼容原 Reading 名称）、Prediction、Alert、Session、BackendAssessment。
-- `shared/openapi.draft.json`：可供后端评审的 OpenAPI 3.1 草案。
-- `shared/api-examples/`：完整响应示例，全部虚构，来源均标记 `mock`；不会作为真实 API 失败的备用数据。
-- `src/data/`：Web TypeScript 模型、运行时校验、MockDataService / LiveApiService。
-- `ios/CareLink/Models.swift`、`LiveApiService.swift`：相同字段含义的 Codable 模型与适配器。
+## 登录和传输
 
-## 待确认接口
+- Cookie `carelink_session` 为Secure、HttpOnly、SameSite=Lax、path=/。服务器保存Token的SHA-256摘要、绝对到期和撤销记录，当前8小时上限。
+- 所有`/api`请求必须HTTPS、受信任同源Host/Origin；变更请求为JSON并带`X-CareLink-CSRF: 1`。不开放任意跨域CORS。
+- 浏览器须访问网关自己的HTTPS页面；不要从HTTP Vite页面跨域登录。Android原生桥发送对应网关Origin，Cookie不交给JS。
+- 登录限速与角色/患者授权在服务器执行，客户端选择角色或提交patient_id不能授予权限。
+- Android使用现有Keystore/AES-GCM存储与独立OkHttp NO_COOKIES请求。证书链、有效期和主机身份都校验，禁止TLS/HTTP降级和跨origin重定向。
 
-| 方法 | 草案路径 | 返回 | 空数据及错误 |
-|---|---|---|---|
-| GET | `/api/session` | Session | 401 未认证；不是本地角色选择 |
-| GET | `/api/patients` | Patient[] | `[]` 或 204 代表空列表 |
-| GET | `/api/patients/{id}` | Patient | 404 表示不存在/不可见，客户端显示空详情 |
-| GET | `/api/patients/{id}/readings?minutes=10` | SensorReading[] | `[]` 或 204；须完整覆盖可用窗口，不能静默截断 |
-| GET | `/api/patients/{id}/predictions` | Prediction[] | `[]` 或 204；未产出不得返回默认预测 |
-| GET | `/api/alerts` | Alert[] | `[]` 或 204；仅当前角色可见记录 |
-| POST | `/api/alerts/{id}/acknowledgement` | 已更新的 Alert | 请求体 `{}`；200 必须返回正确 ID 和确认时间；不能用 204 假定确认成功 |
+## 设备协议和数据来源
 
-列表响应当前按裸数组解析，不支持未经约定的 `{items: ...}` 包裹。若后端选择分页/包裹格式，只在服务层映射，不改页面。所有非成功 HTTP、无效 JSON、格式不符、超时/网络失败均显示错误，不回退成模拟数据。确认失败保持原状态。重复确认建议幂等；事件已结束或版本冲突可返回 409，UI 重新加载后再处理。
+完整固件签名实现在`firmware/elder_sensors/device_signing.h`，服务器在`backend/device_auth.py`。签名7行、LF分隔、无末尾LF：
 
-## 字段含义
+```text
+CARELINK-HMAC-SHA256-V1
+POST
+/sensor-data
+<device-id>
+<Unix-seconds>
+<32-lowercase-hex-nonce>
+<SHA256-of-exact-UTF8-body>
+```
 
-`Patient` 沿用原工程字段：`id, name, age, sex, bed, history, color, admittedAt, allergies, reading`。`reading` 为最新返回快照或 null。`age` 为整数。没有病史或床位信息时可用空字符串；请与团队确认哪些是必填业务字段。Basic 的响应必须在服务端限制患者范围，并对病史/原始数据等无权字段做脱敏或返回空值。前端过滤不是后端授权的替代。
+设备凭据与签名只在认证头，不能放入raw_json或日志。nonce提交之后才发内部准入receipt；读数/告警写入消费receipt并持有同一gate租约。重放409、坏认证/过期401、缺损账本503，不创建空账本修复。nonce与读数是两个事务，保证最多一次准入，不承诺跨库exactly-once。
 
-`SensorReading`：
+保持原服务器映射：`PATIENT_ID=ttj`，固件`patient_id=patient-01`仅作为原始字段留存；不直接信任客户端患者字段授权，不迁移历史记录。
 
-- `patientId, deviceId, measuredAt, receivedAt, connected, metrics, fall, raw, ai, source`。
-- `measuredAt` 是采集时间；`receivedAt` 是后端接收时间，不能互相替代。时间均为带时区 ISO 8601；建议后端 UTC 存储。两端以设备本地时区显示。
-- `metrics.hr / spo2 / temp` 各有 `value: number | null`、`quality: good | poor | unavailable | unknown`，可选 `available: boolean`。显式 false、非 good、null、离线或过期均不作为有效当前数值；不会填 0 或沿用上一有效值。温度为表面/物体温度，尚未校准为核心体温。
-- `fall.active` 表示仍需关注的设备事件，不能因断线或“已确认”自动变为 false；`fall.quality` 为监测质量，`eventAt` 可空。
-- `raw` 可为 null（未提供或无权限）；内含 `accel_m_s2`、`gyro_deg_s`、`ir`、`red`、`object_temperature_c`、`ambient_temperature_c`，缺失量可空。两个向量可为 null。
-- `source: mock | device | backend` 是来源，不由当前 UI 模式猜测。API 也可返回明确标记的 mock 联调记录；界面不能把它标为真实硬件测量。
-- `assessment` 可空；存在时必须为 `origin: backend`，含 `level, reasons, assessedAt, ruleSetId`。真实模式优先展示它；未提供则显示待确认，已上报跌倒事件单独保留警报。**不会用课堂数值阈值给真实读数推断分级。** 过期/缺失信息不能显示为完整绿色健康状态，已有红/黄后端判断可保留并标注时效问题。
+`SensorReading`的来源独立于UI模式：`source=mock|device|backend`。API环境配置为simulation或body显式标注simulation时，不能返回device。硬件网关启动器无自动模拟器。API模式网络失败/401/数据过期不能转为mock。
 
-`Prediction`：
+- 必需核心指标仍为心率、物体/表面温度、跌倒。质量标记false或心率held时不当作新有效读数；null不转0。
+- 可选血氧接收`spo2_percent`、`spo2.percent`、`max30102.spo2`，结合`spo2_ok`/对应ok；没有上报时保持缺失，UI显示未提供。有效值显示，坏值不当作正常；沿用项目95/90的课程规则生成独立血氧告警，不改变三输入模型，也不是临床标准。
+- 原模拟脉搏ADC不能推算SpO₂。现有固件并未实现双光路血氧测量，不能声称已测得血氧。
+- `measuredAt`当前取保存时的服务器接收时刻；`receivedAt`同值。固件uptime不是UTC采样时间；不能由它们推断真实采样延迟。重复查询不更新这些时间。
+- `connected`是最近接收状态；UI还按显示有效期检查过期。模型域为心率/温度/跌倒；无效输入的label/confidence为null，表面温度须校准后才可作体温解释。
 
-- `state: not_connected | pending | available | failed | unavailable`；独立于测量显示。
-- `id, patientId, predictedAt, inputsMeasuredAt, model, modelVersion, result, confidence, confidenceMeaning, source`。新元数据兼容旧内嵌 ai，缺失时不合成。
-- 独立预测接口的每项必须能归属请求的 patientId。`result` 可为任意 JSON 或 null，不假定某种算法输出。
-- `confidence` 只保留后端实际数值或 null，**不自动变成百分比，不假定 0–1，不填默认值**。0 是合法的实际返回值；含义/标定/单位由后端确认，并通过 confidenceMeaning 说明。无实际输出不生成结论、置信度或时间。
+## 当前限制
 
-`Alert`：
-
-- `id, patientId, type, severity, occurredAt, updatedAt, summary, source`。
-- `status: new | acknowledged | resolved`；`conditionActive` 独立于处理状态。
-- `acknowledgedAt, acknowledgedBy, resolvedAt` 可空。acknowledged 必须有确认时间；resolved 必须有结束时间且 conditionActive 为 false。
-- 确认仅记录查看，不能代表风险解除、不能改变测量或分级。真实告警 ID、发生时间及状态由后端返回，不能在客户端生成。模拟模式的 ID 和发生时间仅表示本次本地演示首次观察，关闭页面/App 会丢失。
-
-## 配置与认证边界
-
-`shared/carelink-config.json` 是两端共用的配置源，默认 `mode: mock`。Web 生成到 `public/carelink-config.json`，构建后可修改部署文件 `build/carelink-config.json`；SwiftUI 从 bundle 读取同名 JSON，修改后重新构建安装。Web 支持 `.env.example` 所列的构建覆盖，无需更改页面。
-
-启用真实模式前：确定 baseUrl/端点，改 `mode: live`，显式设置 `apiConfirmed: true`。iPhone 必须使用可达的绝对 HTTP(S) 地址；Web 可用同源代理。该开关只防止误启用草案，不是身份或安全授权。确认后也不等于已联调成功。
-
-目前 Web 使用 `credentials: include`，iOS 使用 URLSession 的已认证会话；没有自行发明登录 POST，也不把演示密码发到后端。正式认证端点、Cookie/Token、iOS 安全凭据保存、CSRF、跨域 CORS、证书与退出流程均须组员确定后接入。本轮没有保存真实凭据或硬编码密钥。不要为了联调关闭全局 iOS 传输安全；本地 HTTP 的必要例外应等地址和开发方式确定后限定处理。
-
-## 后端组需确认的清单
-
-1. FastAPI 的实际 OpenAPI、可达开发地址、版本路径、认证/退出方式及各角色权限；Basic 关联一位还是多位患者。
-2. SQLite 中患者、设备关联和时间字段的真实定义，能否返回 measuredAt 与 receivedAt；设备心跳与 connected 判定方式。
-3. 列表/详情格式、空值策略、数据质量来源、传感器可用标志和测温校准方式。
-4. 最近十分钟时间边界、排序、分页与采样聚合；客户端目前不补齐缺失记录。确认刷新频率；API 模式目前手动刷新。
-5. AI 输出样例、模型/版本、输入采样时间、预测时间及 confidence 的真实含义。
-6. 后端分级规则/版本、显示有效期，以及跌倒事件的产生、确认、结束和并发更新机制。现有 30 秒为演示显示有效期，真实部署须确认。
-7. 告警类型/严重度枚举、幂等确认、冲突返回、历史保留及服务端审计。
-
-在这些信息确定前，默认继续 mock。无需更改 React 或 SwiftUI 页面来切换服务；若 JSON 有差异，改适配与契约测试。
+历史窗口存在条数上限；患者映射仍为既有单患者方案。实际硬件/真实手机、旧网关历史账本兼容性没有在本轮验证。旧v1 ledger不能被当前运行代码自动转换；不能复制旧密钥配空账本冒充恢复。

@@ -1,17 +1,35 @@
-# ESP32 firmware
+# ESP32 HTTPS/HMAC firmware
 
-`elder_sensors/elder_sensors.ino` reads the heart-rate sensor, MLX90614 temperature sensor and MPU6050 fall detector, updates the LCD1602A, and posts each snapshot to FastAPI.
+`elder_sensors/elder_sensors.ino` is the restored secure hardware source. It
+preserves the analog pulse sensor, MLX90614, MPU6050, LCD and model-controlled
+buzzer. The analog pulse sensor does not measure SpO₂.
 
-Before compiling:
+Follow the root [README](../README.md) for the unified local gateway. After
+`gateway:prepare`, `gateway:accounts` and `gateway:address`, manually open the
+matching private sketch at
+`.coursework/hardware-gateway/firmware/elder_sensors/elder_sensors.ino`.
+Fill only its Wi-Fi placeholders locally. Its separate endpoint, device
+credentials and CA headers match the new acceptance gateway. Never commit or
+share these private headers. The public example headers contain placeholders.
 
-1. Copy `elder_sensors/secrets.example.h` to `elder_sensors/secrets.h`.
-2. Enter the 2.4 GHz Wi-Fi name/password and the Mac's current LAN or hotspot IP.
-3. Start FastAPI on `0.0.0.0:8000`.
+Upload uses HTTPS `/sensor-data`, CA and server identity verification,
+SNTP-synchronized time, API key, HMAC-SHA256 and random nonce. Failed time sync
+or TLS validation must prevent upload; do not use `setInsecure()` or HTTP.
+The gateway retains atomic nonce protection and guarded readings/alert writes.
+Do not copy old device identity into a fresh ledger to bypass recovery checks.
 
-Each Mac has its own LAN address. Run `npm start` in the repository root and
-use the printed `ESP32 upload URL`; do not copy another team member's IP. The
-web page automatically requests the latest backend record once per second,
-but it can only change when the API Terminal is receiving repeated
-`POST /sensor-data` requests.
+The local compile check uses ESP32 Dev Module, Core Debug Level=None. Select
+the actual board and USB port manually in Arduino IDE; Serial Monitor is
+**115200 baud**. Observe Wi-Fi, time sync, sensor validity and repeated
+`HTTPS POST status: 200`, then compare at least three advancing saved record
+timestamps in both Web and Android. A build or HTTP 200 alone is not hardware
+acceptance. No serial access or flashing is performed by the build checks.
 
-The buzzer has one authority: the model result returned by `POST /sensor-data`. It sounds only while the most recent valid server classification is `warning` or `critical`. It is explicitly off for `normal`, invalid/missing data, malformed responses, network failures, and stale responses. Raw sensor thresholds do not activate it independently.
+```sh
+npm run test:firmware
+npm run check:firmware
+```
+
+The buzzer follows the model result returned by the authenticated upload. It
+is off for invalid/missing data, malformed responses, network failures and
+stale responses. Raw sensor thresholds do not independently activate it.

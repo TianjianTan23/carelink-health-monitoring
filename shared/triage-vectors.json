@@ -883,7 +883,7 @@
       "source": "mock",
       "scenario": "normal"
     },
-    "expected": "green"
+    "expected": "red"
   },
   {
     "name": "spo2-90",
@@ -938,7 +938,7 @@
       "source": "mock",
       "scenario": "normal"
     },
-    "expected": "green"
+    "expected": "yellow"
   },
   {
     "name": "spo2-95",

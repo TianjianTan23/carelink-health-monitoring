@@ -1,8 +1,8 @@
-import React,{useCallback} from 'react';
+import React,{useCallback,useState} from 'react';
 import type {Language,MetricKey,Patient,Prediction,SensorReading,Session} from '../data/models';
 import {MetricGrid,ResourceNotice,StatusPanel} from './components';
 import {Icon} from './Icons';
-import {metricName,patientName,time,units} from './presentation';
+import {metricName,patientName,retainedHeart,time,units} from './presentation';
 import {useUI} from './context';
 import {useResource} from './useResource';
 
@@ -21,10 +21,11 @@ function SubjectHeader({patients,selectedId,select,title,subtitle}:{patients:Pat
 
 function currentPatient(patients:Patient[],selectedId:string){return patients.find(patient=>patient.id===selectedId)??patients[0];}
 
-export function ReadingsPage(props:SharedProps){
-  const {t,lang}=useUI();
+export function ReadingsPage(props:SharedProps&{lastHeart:{value:number;measuredAt:string}|null}){
+  const {t,lang,now,service}=useUI();
   const patient=currentPatient(props.patients,props.selectedId);
-  return <><SubjectHeader {...props} title={t('实时读数','Readings')} subtitle={t('仅展示心率、体温和跌倒检测。','Heart rate, temperature and fall detection only.')}/>{patient?<><StatusPanel reading={patient.reading} prominent={props.session.role==='clinician'}/><MetricGrid reading={patient.reading}/><section className="panel reading-meta"><h2>{t('本次采集','Current snapshot')}</h2><dl><div><dt>{t('采集时间','Measured at')}</dt><dd>{time(patient.reading?.measuredAt,lang)}</dd></div><div><dt>{t('接收时间','Received at')}</dt><dd>{time(patient.reading?.receivedAt,lang)}</dd></div><div><dt>{t('设备','Device')}</dt><dd>{patient.reading?.deviceId??'—'}</dd></div><div><dt>{t('连接状态','Connection')}</dt><dd>{patient.reading?.connected?t('在线','Online'):t('离线或过期','Offline or stale')}</dd></div></dl></section></>:<div className="empty">{t('暂无授权患者','No authorized patient')}</div>}</>;
+  const heldHeart=service.mode==='live'?retainedHeart(props.lastHeart,patient?.reading??null,now):null;
+  return <><SubjectHeader {...props} title={t('实时读数','Readings')} subtitle={t('心率、体温、可选血氧与跌倒；无效或缺失值不补零。','Heart rate, temperature, optional SpO₂ and fall detection.')}/>{patient?<><StatusPanel reading={patient.reading} prominent={props.session.role==='clinician'}/><MetricGrid reading={patient.reading} heldHeart={heldHeart}/><section className="panel reading-meta"><h2>{t('本次采集','Current snapshot')}</h2><dl><div><dt>{t('采集时间','Measured at')}</dt><dd>{time(patient.reading?.measuredAt,lang)}</dd></div><div><dt>{t('接收时间','Received at')}</dt><dd>{time(patient.reading?.receivedAt,lang)}</dd></div><div><dt>{t('设备','Device')}</dt><dd>{patient.reading?.deviceId??'—'}</dd></div><div><dt>{t('连接状态','Connection')}</dt><dd>{patient.reading?.connected?t('在线','Online'):t('离线或过期','Offline or stale')}</dd></div></dl></section></>:<div className="empty">{t('暂无授权患者','No authorized patient')}</div>}</>;
 }
 
 function useHistory(patientId:string,refreshVersion:number){
@@ -37,14 +38,14 @@ export function HistoryPage(props:SharedProps){
   const {service,t,lang,refreshVersion}=useUI();
   const patient=currentPatient(props.patients,props.selectedId);
   const [history,reload]=useHistory(patient?.id??'',refreshVersion);
-  const subtitle=service.mode==='live'?t('SQLite readings 表中最近 24 小时的原始时间序列。','The latest 24 hours from the SQLite readings table.'):t('演示历史时间序列。','Demonstration history time series.');
-  return <><SubjectHeader {...props} title={t('历史记录','History')} subtitle={subtitle}/><ResourceNotice resource={history} retry={reload} emptyLabel={t('还没有历史读数','No historical readings yet')}/>{history.data.length>0&&<section className="panel"><div className="section-heading"><h2>{t('读数明细','Reading records')}</h2><span className="count-pill">{history.data.length}</span></div><div className="table-wrap history-table"><table><thead><tr><th>{t('时间','Time')}</th><th>{t('心率','Heart rate')}</th><th>{t('体温','Temperature')}</th><th>{t('跌倒','Fall')}</th><th>{t('分类','Classification')}</th></tr></thead><tbody>{history.data.map((reading,index)=><tr key={`${reading.measuredAt}-${index}`}><td>{time(reading.measuredAt,lang)}</td><td>{displayMetric(reading,'hr')} bpm</td><td>{displayMetric(reading,'temp')} °C</td><td>{reading.fall.quality==='good'?(reading.fall.active?t('是','Yes'):t('否','No')):'—'}</td><td><ClassificationPill label={predictionLabel(reading.ai)}/></td></tr>)}</tbody></table></div></section>}</>;
+  const subtitle=service.mode==='live'?t('最近 24 小时内最多 2,000 条原始记录。','Up to 2,000 raw records from the last 24 hours.'):t('演示历史时间序列。','Demonstration history time series.');
+  return <><SubjectHeader {...props} title={t('历史记录','History')} subtitle={subtitle}/><ResourceNotice resource={history} retry={reload} emptyLabel={t('还没有历史读数','No historical readings yet')}/>{history.data.length>0&&<section className="panel"><div className="section-heading"><h2>{t('读数明细','Reading records')}</h2><span className="count-pill">{history.data.length}</span></div><div className="table-wrap history-table"><table><thead><tr><th>{t('时间','Time')}</th><th>{t('心率','Heart rate')}</th><th>{t('体温','Temperature')}</th><th>{t('血氧','SpO₂')}</th><th>{t('跌倒','Fall')}</th><th>{t('分类','Classification')}</th></tr></thead><tbody>{history.data.map((reading,index)=><tr key={`${reading.measuredAt}-${index}`}><td>{time(reading.measuredAt,lang)}</td><td>{displayMetric(reading,'hr')} bpm</td><td>{displayMetric(reading,'temp')} °C</td><td>{displayMetric(reading,'spo2')} %</td><td>{reading.fall.quality==='good'?(reading.fall.active?t('是','Yes'):t('否','No')):'—'}</td><td><ClassificationPill label={predictionLabel(reading.ai)}/></td></tr>)}</tbody></table></div></section>}</>;
 }
 
 function displayMetric(reading:SensorReading,key:MetricKey){
   const metric=reading.metrics[key];
   // Historical measurements remain valid records after the live device becomes stale.
-  if(metric.available===false||metric.quality!=='good'||metric.value===null)return '—';
+  if(!metric||metric.available===false||metric.quality!=='good'||metric.value===null)return '—';
   return key==='temp'?metric.value.toFixed(1):String(Math.round(metric.value));
 }
 
@@ -52,19 +53,19 @@ export function ChartsPage(props:SharedProps){
   const {t,refreshVersion}=useUI();
   const patient=currentPatient(props.patients,props.selectedId);
   const [history,reload]=useHistory(patient?.id??'',refreshVersion);
-  return <><SubjectHeader {...props} title={t('图表','Charts')} subtitle={t('心率和体温历史折线图；缺失或无效数据不会被伪造补齐。','Heart-rate and temperature trends; missing or invalid samples remain gaps.')}/><ResourceNotice resource={history} retry={reload} emptyLabel={t('暂无可绘制的数据','No chart data yet')}/>{history.data.length>0&&<div className="chart-grid"><HistoryChart readings={history.data} metric="hr"/><HistoryChart readings={history.data} metric="temp"/></div>}</>;
+  return <><SubjectHeader {...props} title={t('图表','Charts')} subtitle={t('心率和体温历史折线图；缺失或无效数据不会被伪造补齐。','Heart-rate and temperature trends; missing or invalid samples remain gaps.')}/><ResourceNotice resource={history} retry={reload} emptyLabel={t('暂无可绘制的数据','No chart data yet')}/>{history.data.length>0&&<div className="chart-grid"><HistoryChart readings={history.data} metric="hr"/><HistoryChart readings={history.data} metric="temp"/>{history.data.some(row=>row.metrics.spo2!==undefined)&&<HistoryChart readings={history.data} metric="spo2"/>}</div>}</>;
 }
 
 function HistoryChart({readings,metric}:{readings:SensorReading[];metric:MetricKey}){
   const {service,t,lang}=useUI();
   const ordered=readings.slice().sort((a,b)=>Date.parse(a.measuredAt)-Date.parse(b.measuredAt));
-  const valid=(reading:SensorReading)=>reading.metrics[metric].available!==false&&reading.metrics[metric].quality==='good'&&reading.metrics[metric].value!==null;
-  const values=ordered.filter(valid).map(reading=>reading.metrics[metric].value!);
+  const valid=(reading:SensorReading)=>Boolean(reading.metrics[metric]&&reading.metrics[metric]!.available!==false&&reading.metrics[metric]!.quality==='good'&&reading.metrics[metric]!.value!==null);
+  const values=ordered.filter(valid).map(reading=>reading.metrics[metric]!.value!);
   if(values.length===0)return <section className="panel chart-card"><h2>{metricName(metric,lang)}</h2><div className="trend-empty">{t('没有有效读数','No valid samples')}</div></section>;
   const low=Math.min(...values),high=Math.max(...values),padding=metric==='temp'?0.4:3;
   const minimum=low-padding,maximum=high+padding||minimum+1;
   const first=Date.parse(ordered[0].measuredAt),last=Date.parse(ordered.at(-1)!.measuredAt),span=Math.max(1,last-first);
-  const point=(reading:SensorReading)=>`${46+(Date.parse(reading.measuredAt)-first)/span*624},${178-(reading.metrics[metric].value!-minimum)/(maximum-minimum)*138}`;
+  const point=(reading:SensorReading)=>`${46+(Date.parse(reading.measuredAt)-first)/span*624},${178-(reading.metrics[metric]!.value!-minimum)/(maximum-minimum)*138}`;
   const segments:string[][]=[];let segment:string[]=[];
   for(const reading of ordered){if(valid(reading)){segment.push(point(reading));}else if(segment.length){segments.push(segment);segment=[];}}
   if(segment.length)segments.push(segment);
@@ -95,5 +96,7 @@ export function ClassificationsPage(props:SharedProps){
 
 export function SettingsPage({session,language,theme,currentTheme}:{session:Session;language:()=>void;theme:()=>void;currentTheme:string}){
   const {service,t,lang}=useUI();
-  return <><div className="page-heading"><div><span className="eyebrow">ACCOUNT · ROLE · DISPLAY</span><h1>{t('设置','Settings')}</h1><p>{t('账号权限和本机显示偏好。','Account scope and local display preferences.')}</p></div></div><div className="settings-grid"><section className="panel"><h2>{t('当前账号','Current account')}</h2><dl className="settings-list"><div><dt>{t('用户 ID','User ID')}</dt><dd>{session.userId}</dd></div><div><dt>{t('角色','Role')}</dt><dd>{session.role==='clinician'?t('护士','Nurse'):t('病人','Patient')}</dd></div><div><dt>{t('视图','View')}</dt><dd>{session.mode==='pro'?t('护士工作台','Nurse workspace'):t('病人视图','Patient view')}</dd></div><div><dt>{t('授权患者','Authorized patients')}</dt><dd>{session.patientIds.join(', ')}</dd></div><div><dt>{t('数据模式','Data mode')}</dt><dd>{service.mode.toUpperCase()}</dd></div></dl></section><section className="panel"><h2>{t('显示偏好','Display preferences')}</h2><div className="settings-actions"><button className="button" onClick={language}><Icon name="unknown"/>{lang==='zh'?'English':'中文'}</button><button className="button" onClick={theme}><Icon name={currentTheme==='light'?'moon':'sun'}/>{currentTheme==='light'?t('深色模式','Dark mode'):t('浅色模式','Light mode')}</button></div><p className="caption">{t('偏好只保存在这台电脑的浏览器中。','Preferences are stored only in this browser.')}</p></section><section className="panel settings-security"><Icon name="shield" size={28}/><div><h2>{t('角色权限','Role permissions')}</h2><p>{session.role==='clinician'?t('护士可以查看患者数据并确认告警。','Nurses can view patient data and acknowledge alerts.'):t('病人只能查看自己的读数、历史、图表、分类和告警，不能确认告警。','Patients can view only their own readings, history, charts, classifications and alerts; they cannot acknowledge alerts.')}</p></div></section></div></>;
+  const [rotation,setRotation]=useState(''),[rotating,setRotating]=useState(false);
+  async function rotate(){setRotating(true);try{await service.rotateSession?.();setRotation(t('会话已轮换，旧凭据已失效。','Session rotated; old credential invalidated.'));}catch{setRotation(t('会话轮换失败，请检查连接或重新登录。','Rotation failed; check connection or sign in again.'));}finally{setRotating(false);}}
+  return <><div className="page-heading"><div><span className="eyebrow">ACCOUNT · ROLE · DISPLAY</span><h1>{t('设置','Settings')}</h1><p>{t('账号权限和本机显示偏好。','Account scope and local display preferences.')}</p></div></div><div className="settings-grid"><section className="panel"><h2>{t('当前账号','Current account')}</h2>{service.mode==='live'&&service.rotateSession&&<><button className="button" disabled={rotating} onClick={rotate}>{t('轮换会话','Rotate session')}</button><p role="status">{rotation}</p></>}<dl className="settings-list"><div><dt>{t('用户 ID','User ID')}</dt><dd>{session.userId}</dd></div><div><dt>{t('角色','Role')}</dt><dd>{session.role==='clinician'?t('护士','Nurse'):t('病人','Patient')}</dd></div><div><dt>{t('视图','View')}</dt><dd>{session.mode==='pro'?t('护士工作台','Nurse workspace'):t('病人视图','Patient view')}</dd></div><div><dt>{t('授权患者','Authorized patients')}</dt><dd>{session.patientIds.join(', ')}</dd></div><div><dt>{t('数据模式','Data mode')}</dt><dd>{service.mode.toUpperCase()}</dd></div></dl></section><section className="panel"><h2>{t('显示偏好','Display preferences')}</h2><div className="settings-actions"><button className="button" onClick={language}><Icon name="unknown"/>{lang==='zh'?'English':'中文'}</button><button className="button" onClick={theme}><Icon name={currentTheme==='light'?'moon':'sun'}/>{currentTheme==='light'?t('深色模式','Dark mode'):t('浅色模式','Light mode')}</button></div><p className="caption">{t('偏好只保存在这台电脑的浏览器中。','Preferences are stored only in this browser.')}</p></section><section className="panel settings-security"><Icon name="shield" size={28}/><div><h2>{t('角色权限','Role permissions')}</h2><p>{session.role==='clinician'?t('护士可以查看患者数据并确认告警。','Nurses can view patient data and acknowledge alerts.'):t('病人只能查看自己的读数、历史、图表、分类和告警，不能确认告警。','Patients can view only their own readings, history, charts, classifications and alerts; they cannot acknowledge alerts.')}</p></div></section></div></>;
 }

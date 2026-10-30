@@ -3,17 +3,7 @@ import {triage} from '../../dist/rules.js';
 import {AlertSchema,PatientSchema,SensorReadingSchema,SessionSchema,type Alert,type AppMode,type DemoRules} from './models';
 import {DataError,type DataService,type Scenario} from './service';
 
-const mockPasswordDigests:Record<string,string>={
-  ttj:'e732ea382c443f4695096e06219438ec1171ab89892c74b1838be7760fd8353e',
-  wyn:'57c79ec1682e01acc7cdaa2af4f8515a3492e5d9374ab2773976de94fc85fe1e',
-};
-
-async function passwordDigest(password:string){
-  const bytes=new TextEncoder().encode(password);
-  const digest=await globalThis.crypto.subtle.digest('SHA-256',bytes);
-  return Array.from(new Uint8Array(digest),byte=>byte.toString(16).padStart(2,'0')).join('');
-}
-
+// Public demo credentials only; these never authenticate to the Python API.
 export class MockDataService implements DataService {
   readonly mode='mock' as const;
   private legacy=new MockService();
@@ -27,9 +17,8 @@ export class MockDataService implements DataService {
   async authenticate(username:string,password:string){
     this.checkNetwork();
     const account=username.trim().toLowerCase();
-    const digest=await passwordDigest(password);
-    if(account==='ttj'&&digest===mockPasswordDigests.ttj)return this.getSession('basic');
-    if(account==='wyn'&&digest===mockPasswordDigests.wyn)return this.getSession('pro');
+    if(account==='demo-patient'&&password==='coursework-demo')return this.getSession('basic');
+    if(account==='demo-clinician'&&password==='coursework-demo')return this.getSession('pro');
     throw new DataError('forbidden','Invalid user ID or password',401);
   }
   async logout(){this.session=null;}

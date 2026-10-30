@@ -42,6 +42,11 @@ struct CoreChecks {
             check(native.reading?.metrics.temp.value == fixture.reading?.metrics.temp.value, "Shared temperature fixture")
             check(native.reading?.fall.active == fixture.reading?.fall.active, "Shared fall fixture")
         }
+        var optionalMetric=service.makeReading(id:"p001",scenario:"normal",now:anchor)!
+        optionalMetric.metrics.spo2=Metric(value:89.9,quality:.good)
+        check(Monitoring.triage(optionalMetric,rules:rules,now:anchor).level == .red,"Supplied valid severe optional metric cannot be hidden")
+        optionalMetric.metrics.spo2=Metric(value:nil,quality:.unavailable,available:false)
+        check(Monitoring.triage(optionalMetric,rules:rules,now:anchor).level == .green,"Explicitly absent optional sensor does not invent a requirement")
         let history = try await service.getHistory(patientID: "p004")
         check(history.count == 21, "21 samples over 10 minutes")
         check(history.allSatisfy { $0.measuredAt >= anchor.addingTimeInterval(-600) && $0.measuredAt <= anchor }, "Bounded history window")
@@ -103,10 +108,15 @@ struct CoreChecks {
         check(apiProfiles.count == 8 && apiPatient.id == "p001", "Shared proposed API profile fixtures")
         check(apiPredictions[0].confidence == nil && apiPredictions[0].predictedAt == nil, "No fabricated prediction confidence or time")
         var configuration = try load("carelink-config.json", ServiceConfiguration.self)
-        configuration.mode = .live; configuration.baseUrl = "https://backend.example"
+        configuration.mode = .live; configuration.baseUrl = "https://backend.example"; configuration.apiConfirmed=false
         do { try configuration.validate(); fatalError("Unconfirmed API must fail") } catch { checks += 1 }
         configuration.apiConfirmed = true
-        let api = try LiveApiService(configuration: configuration, rules: rules, clock:{anchor}) { request in
+        func fixtureCredentials() -> MemorySessionStore {
+            let store=MemorySessionStore()
+            store.values["https://backend.example"]=StoredSession(token:"cl_s1_"+String(repeating:"a",count:43),expiresAt:Date().addingTimeInterval(3600))
+            return store
+        }
+        let api = try LiveApiService(configuration: configuration, rules: rules, clock:{anchor},credentials:fixtureCredentials()) { request in
             let path = request.url!.path
             var data = Data()
             var statusCode = 200
@@ -115,7 +125,7 @@ struct CoreChecks {
             case "/api/patients": data = try WireJSON.encoder().encode(apiProfiles)
             case "/api/patients/p001": data = try WireJSON.encoder().encode(apiPatient)
             case "/api/patients/p001/readings":
-                check(request.url!.query == "minutes=10", "Native ten-minute query")
+                check(request.url!.query == configuration.endpoints.readings.components(separatedBy:"?").last, "Native configured history query; returned history is filtered to ten minutes")
                 data = try WireJSON.encoder().encode(apiReadings)
             case "/api/patients/p001/predictions": data = try WireJSON.encoder().encode(apiPredictions)
             case "/api/alerts": data = try WireJSON.encoder().encode(apiAlerts)
@@ -143,7 +153,7 @@ struct CoreChecks {
         check(nativeAck.acknowledgedAt != nil && nativeAck.conditionActive, "Native confirmation never resolves active condition")
         let missing = try await api.getPatient(id:"p004")
         check(missing == nil, "Native API 404 becomes absent detail")
-        let emptyAPI = try LiveApiService(configuration:configuration,rules:rules, transport: { request in
+        let emptyAPI = try LiveApiService(configuration:configuration,rules:rules, credentials:fixtureCredentials(), transport: { request in
             let data = request.url!.path == "/api/session" ? try WireJSON.encoder().encode(sessions.pro) : Data()
             let statusCode = request.url!.path == "/api/session" ? 200 : 204
             return (data,HTTPURLResponse(url:request.url!,statusCode:statusCode,httpVersion:nil,headerFields:nil)!)
@@ -152,17 +162,17 @@ struct CoreChecks {
         let emptyList = try await emptyAPI.getPatients()
         let emptyAlerts = try await emptyAPI.getAlerts()
         check(emptyList.isEmpty && emptyAlerts.isEmpty, "Native API 204 empty list handling")
-        let failedAPI = try LiveApiService(configuration:configuration,rules:rules, transport: { request in
+        let failedAPI = try LiveApiService(configuration:configuration,rules:rules, credentials:fixtureCredentials(), transport: { request in
             if request.url!.path == "/api/session" { return (try WireJSON.encoder().encode(sessions.pro),HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!) }
             return (Data(),HTTPURLResponse(url:request.url!,statusCode:500,httpVersion:nil,headerFields:nil)!)
         })
         _ = try await failedAPI.getSession(mode:.pro)
         do { _ = try await failedAPI.getPatients(); fatalError("HTTP error must propagate") } catch ServiceError.http(500) { checks += 1 }
-        let malformedAPI = try LiveApiService(configuration:configuration,rules:rules, transport: { request in
+        let malformedAPI = try LiveApiService(configuration:configuration,rules:rules, credentials:fixtureCredentials(), transport: { request in
             return (Data("{broken".utf8),HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)
         })
         do { _ = try await malformedAPI.getSession(mode:.pro); fatalError("Malformed JSON must fail") } catch ServiceError.invalidResponse { checks += 1 }
-        let offlineAPI = try LiveApiService(configuration:configuration,rules:rules,transport: { _ in throw URLError(.notConnectedToInternet) })
+        let offlineAPI = try LiveApiService(configuration:configuration,rules:rules,credentials:fixtureCredentials(),transport: { _ in throw URLError(.notConnectedToInternet) })
         do { _ = try await offlineAPI.getSession(mode:.pro); fatalError("Network failure must propagate") } catch ServiceError.network { checks += 1 }
         var liveReading = loaded[1].reading!
         liveReading.source = "device"; liveReading.measuredAt = anchor
@@ -171,7 +181,7 @@ struct CoreChecks {
         check(Monitoring.liveReport(liveReading,rules:rules,now:anchor).level == .yellow, "Native backend assessment is authoritative")
         liveReading.metrics.hr.available = false
         check(Monitoring.display(liveReading,key:.hr,rules:rules,now:anchor) == "—", "Native explicit sensor availability respected")
-        let basicAPI = try LiveApiService(configuration:configuration,rules:rules, transport: { request in
+        let basicAPI = try LiveApiService(configuration:configuration,rules:rules, credentials:fixtureCredentials(), transport: { request in
             return (try WireJSON.encoder().encode(sessions.basic),HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)
         })
         let basicSession = try await basicAPI.getSession(mode:.pro)

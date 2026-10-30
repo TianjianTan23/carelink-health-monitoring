@@ -4,10 +4,25 @@
 #include <ArduinoJson.h>
 #include <math.h>
 #include <WiFi.h>
-#include <WiFiClient.h>
+#include <WiFiClientSecure.h>
+#include <time.h>
+#include <esp_sntp.h>
+#include <esp_random.h>
+#include <mbedtls/md.h>
+#include <mbedtls/sha256.h>
 #include <HTTPClient.h>
 
 #include "secrets.h"
+#include "gateway_ca.h"
+#include "device_auth.h"
+#include "device_signing.h"
+#include "upload_diagnostics.h"
+#include <mbedtls/x509.h>
+
+// Keep library-level HTTP diagnostics from ever dumping authentication headers.
+#if defined(CORE_DEBUG_LEVEL) && CORE_DEBUG_LEVEL != 0
+#error "CareLink device authentication requires Tools > Core Debug Level > None"
+#endif
 
 // Allow enough time for the Mac-hosted FastAPI classifier to respond.
 const uint32_t HTTP_TIMEOUT_MS = 15000;
@@ -23,7 +38,7 @@ const int LCD_D6_PIN = 18;
 const int LCD_D7_PIN = 19;
 const int HEART_RATE_PIN = 34;  // Analog S pin; ADC1 works while WiFi is active.
 const int BUZZER_PIN = 25;      // S pin of an active-high buzzer module.
-const char *DEVICE_ID = "esp32-01";
+const char *DEVICE_ID = DEVICE_AUTH_ID;
 const char *PATIENT_ID = "patient-01";
 
 // Fall detector thresholds. Total acceleration includes gravity, so a stable
@@ -148,6 +163,33 @@ String serverUrl() {
   return String(SERVER_URL);
 }
 
+// ---------- Device authentication / clock ----------
+volatile bool authClockSynchronized = false;
+volatile unsigned long authClockLastSync = 0;
+bool authClockReported = false;
+unsigned long authRetryAt = 0;
+uint32_t authRetryDelayMs = 1000;
+
+void authTimeAvailable(struct timeval *) {
+  authClockLastSync = millis();
+  authClockSynchronized = true;
+}
+
+void scheduleAuthRetry() {
+  authRetryDelayMs = authRetryDelayMs < 30000 ? authRetryDelayMs * 2 : 30000;
+  if (authRetryDelayMs > 30000) authRetryDelayMs = 30000;
+  authRetryAt = millis() + authRetryDelayMs;
+}
+
+int authSHA256(const uint8_t *body, size_t size, uint8_t *digest) {
+  return mbedtls_sha256(body, size, digest, 0);
+}
+
+int authHMAC256(const uint8_t *key, size_t keySize, const uint8_t *body, size_t size, uint8_t *digest) {
+  const mbedtls_md_info_t *info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
+  return info ? mbedtls_md_hmac(info, key, keySize, body, size, digest) : -1;
+}
+
 // ---------- WiFi ----------
 void scanTargetWiFi() {
   WiFi.mode(WIFI_STA);
@@ -184,6 +226,13 @@ void connectWiFi() {
   if (WiFi.status() == WL_CONNECTED) {
     Serial.print("WiFi OK. IP: ");
     Serial.println(WiFi.localIP());
+    Serial.println("[CareLink] WiFi connected");
+    // SNTP is asynchronous. If time cannot be established, HTTPS fails closed.
+    authClockSynchronized = false;
+    authClockReported = false;
+    esp_sntp_set_time_sync_notification_cb(authTimeAvailable);
+    configTime(0, 0, "time.apple.com", "pool.ntp.org", "time.cloudflare.com");
+    Serial.println("[CareLink] SNTP synchronization requested");
     Serial.print("FastAPI URL: ");
     Serial.println(serverUrl());
   } else {
@@ -845,30 +894,77 @@ String buildJSON() {
 
 // ---------- HTTP POST ----------
 void sendJSON(const String &jsonMessage) {
+  if (authRetryAt && (int32_t)(millis() - authRetryAt) < 0) return;
   if (WiFi.status() != WL_CONNECTED) {
     remoteBuzzerRequested = false;
-    Serial.println("POST skipped: WiFi down");
+    Serial.println("[CareLink] Upload skipped: WiFi disconnected");
     return;
   }
 
-  WiFiClient client;
+  // Never downgrade to HTTP or skip certificate/hostname verification.
+  String url = serverUrl();
+  int pathStart = url.indexOf('/', 8);
+  time_t signedTime = time(nullptr);
+  if (!url.startsWith("https://") || pathStart < 0 || url.substring(pathStart) != "/sensor-data") {
+    remoteBuzzerRequested = false;
+    Serial.println("[CareLink] Upload skipped: endpoint must be exactly https://HOST:PORT/sensor-data");
+    scheduleAuthRetry();
+    return;
+  }
+  // Nonblocking SNTP: never invent a time or disable TLS validity checks.
+  if (!carelink::uploadClockReady(authClockSynchronized, (int64_t)signedTime,
+                                 (uint32_t)millis(), (uint32_t)authClockLastSync)) {
+    remoteBuzzerRequested = false;
+    Serial.println("[CareLink] Upload skipped: waiting for recent SNTP synchronization; no POST sent");
+    scheduleAuthRetry();
+    return;
+  }
+  Serial.printf("[CareLink] Sensor payload prepared: %u bytes\n", (unsigned)jsonMessage.length());
+  uint8_t randomNonce[16]; char nonce[33], timestamp[24], signature[65];
+  esp_fill_random(randomNonce, sizeof(randomNonce)); // WiFi is active: hardware RNG entropy is enabled.
+  carelink::hex(randomNonce, sizeof(randomNonce), nonce);
+  snprintf(timestamp, sizeof(timestamp), "%lld", (long long)signedTime);
+  if (strlen(DEVICE_API_KEY) < 32 || strlen(DEVICE_API_KEY) > 128 ||
+      !carelink::signature(DEVICE_AUTH_ID, timestamp, nonce,
+                          (const uint8_t *)jsonMessage.c_str(), jsonMessage.length(),
+                          DEVICE_HMAC_KEY_HEX, authSHA256, authHMAC256, signature)) {
+    remoteBuzzerRequested = false;
+    Serial.println("[CareLink] Upload skipped: invalid local device authentication configuration");
+    scheduleAuthRetry();
+    return;
+  }
+  Serial.println("[CareLink] HMAC signing completed");
+  WiFiClientSecure client;
+  client.setCACert(GATEWAY_ROOT_CA);
+  client.setHandshakeTimeout(8);
 
   HTTPClient http;
+  http.setConnectTimeout(8000);
   http.setTimeout(HTTP_TIMEOUT_MS);
-  String url = serverUrl();
+  http.setFollowRedirects(HTTPC_DISABLE_FOLLOW_REDIRECTS);
   if (!http.begin(client, url)) {
     remoteBuzzerRequested = false;
-    Serial.println("POST failed: http.begin() error");
+    Serial.println("[CareLink] Upload skipped: HTTPS client initialization failed");
+    scheduleAuthRetry();
     return;
   }
   http.addHeader("Content-Type", "application/json");
+  http.addHeader("X-CareLink-Device-Id", DEVICE_AUTH_ID);
+  http.addHeader("X-CareLink-Api-Key", DEVICE_API_KEY);
+  http.addHeader("X-CareLink-Timestamp", timestamp);
+  http.addHeader("X-CareLink-Nonce", nonce);
+  http.addHeader("X-CareLink-Signature", signature);
+  // Never log authentication headers or keys. The exact signed JSON bytes follow.
 
+  Serial.println("[CareLink] HTTPS POST started");
   int code = http.POST(jsonMessage);
   if (code > 0) {
-    Serial.printf("HTTP %d | ", code);
+    Serial.printf("HTTPS POST status: %d\n", code);
+    Serial.printf("[CareLink] HTTP response: %d\n", code);
+    Serial.printf("[CareLink] %s\n", carelink::uploadHttpOutcome(code));
     String response = http.getString();
-    if (response.length() > 0) Serial.println(response);
-    else Serial.println();
+    if (code >= 200 && code < 300) { authRetryDelayMs = 1000; authRetryAt = 0; }
+    else { scheduleAuthRetry(); }
     if (code >= 200 && code < 300 && response.length() > 0) {
       JsonDocument responseData;
       DeserializationError jsonError = deserializeJson(responseData, response);
@@ -890,7 +986,17 @@ void sendJSON(const String &jsonMessage) {
     }
   } else {
     remoteBuzzerRequested = false;
-    Serial.printf("POST failed: %s\n", http.errorToString(code).c_str());
+    char tlsError[128] = {0};
+    int tlsCode = client.lastError(tlsError, sizeof(tlsError));
+    // Report numeric library errors, never raw responses, keys or headers.
+    if (tlsCode == MBEDTLS_ERR_X509_CERT_VERIFY_FAILED)
+      Serial.println("[CareLink] TLS verification failed: check CA, SAN and clock");
+    else if (code == HTTPC_ERROR_READ_TIMEOUT)
+      Serial.println("[CareLink] Connection timeout");
+    else
+      Serial.println("[CareLink] Network/TLS connection failed: check hotspot, Mac IP, listener and CA");
+    Serial.printf("[CareLink] Transport error: HTTPClient=%d TLS=%d; no HTTP response\n", code, tlsCode);
+    scheduleAuthRetry();
   }
   http.end();
 }
@@ -938,6 +1044,12 @@ void setup() {
 // ---------- Loop ----------
 void loop() {
   unsigned long now = millis();
+
+  // Log outside the SNTP callback and never invent a replacement clock.
+  if (authClockSynchronized && !authClockReported) {
+    authClockReported = true;
+    Serial.printf("[CareLink] SNTP synchronized: epoch=%lld\n", (long long)time(nullptr));
+  }
 
   updateHeartRate(now);
 

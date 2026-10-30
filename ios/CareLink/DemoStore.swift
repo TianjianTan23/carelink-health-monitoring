@@ -17,10 +17,12 @@ final class DemoStore: ObservableObject {
     @Published var now = Date()
     @Published var autoRefresh = true
     @Published var loading = false
-    enum StoreIssue { case resources, signIn, connection, refresh, history, detail }
+    enum StoreIssue { case resources, signIn, connection, refresh, history, detail, sessionExpired, signOut }
     @Published private(set) var issue: StoreIssue?
     var error: String? {
         switch issue {
+        case .sessionExpired: return t("会话已失效，请重新登录。", "Session expired. Sign in again.")
+        case .signOut: return t("本机已退出，但未能确认服务器会话撤销。", "Local sign-out completed; server revocation could not be confirmed.")
         case .detail: return t("患者详情加载失败或患者不存在，请重试。", "Patient details could not load or patient was not found. Please retry.")
         case .resources: return t("配置或共享资源无效。请检查 carelink-config 与 Xcode 资源。", "Configuration or shared resources are invalid. Check carelink-config and Xcode resources.")
         case .signIn: return t("加载失败，请重试；不会以假数据替代真实 API 错误。", "Loading failed. Retry; API errors never fall back to mock data.")
@@ -64,19 +66,19 @@ final class DemoStore: ObservableObject {
             let confirmed = try await service.acknowledgeAlert(id:id)
             if let index = alertRecords.firstIndex(where: { $0.id == confirmed.id }) { alertRecords[index] = confirmed }
             alertIssue = nil
-        } catch { alertIssue = .acknowledge }
+        } catch { if !handleSessionFailure(error) { alertIssue = .acknowledge } }
     }
     func loadAlerts() async {
         guard session != nil, let service = service else { return }
         alertLoadState = .loading
         do { alertRecords = try await service.getAlerts(); alertLoadState = alertRecords.isEmpty ? .empty : .ready; alertIssue = nil }
-        catch { alertLoadState = .failed; alertIssue = .load }
+        catch { if !handleSessionFailure(error) { alertLoadState = .failed; alertIssue = .load } }
     }
     func loadPredictions(_ id: String) async {
         guard patient(id) != nil, let service = service else { return }
         predictionLoadStates[id] = .loading
         do { predictions[id] = try await service.getPredictions(patientID:id); predictionLoadStates[id] = predictions[id]?.isEmpty == true ? .empty : .ready; predictionErrorIDs.remove(id) }
-        catch { predictionLoadStates[id] = .failed; predictionErrorIDs.insert(id) }
+        catch { if !handleSessionFailure(error) { predictionLoadStates[id] = .failed; predictionErrorIDs.insert(id) } }
     }
     private let service: CareService?
     let mock: MockCareService?
@@ -98,17 +100,39 @@ final class DemoStore: ObservableObject {
     }
     func patient(_ id: String) -> Patient? { visiblePatients.first { $0.id == id } }
     func t(_ zh: String, _ en: String) -> String { language == .zh ? zh : en }
-    func signIn(_ mode: AppMode) async {
+    func signIn(_ mode: AppMode, username: String, password: String) async {
         guard let service = service else { return }
         loading = true; patientLoadState = .loading; defer { loading = false }
         do {
-            let authorizedSession = try await service.getSession(mode: mode)
+            let authorizedSession = try await service.authenticate(username:username,password:password,mode:mode)
             let loaded = try await service.refresh()
             session = authorizedSession; patients = loaded; histories = [:]; issue = nil; now = Date()
             lastSuccessfulUpdate = now; patientLoadState = loaded.isEmpty ? .empty : .ready; await loadAlerts()
         } catch { self.issue = .signIn; patientLoadState = .failed }
     }
-    func signOut() { session = nil; patients = []; histories = [:]; alertRecords = []; predictions = [:]; predictionErrorIDs = []; alertIssue = nil; patientLoadState = .idle; alertLoadState = .idle; historyLoadStates = [:]; predictionLoadStates = [:]; lastSuccessfulUpdate = nil; simulateConnectionFailure = false; alertFeedState = .live; issue = nil }
+    private func clearPresentation() { session = nil; patients = []; histories = [:]; alertRecords = []; predictions = [:]; predictionErrorIDs = []; alertIssue = nil; patientLoadState = .idle; alertLoadState = .idle; historyLoadStates = [:]; predictionLoadStates = [:]; lastSuccessfulUpdate = nil; simulateConnectionFailure = false; alertFeedState = .live; issue = nil }
+    private var restorationAttempted=false
+    func restoreLogin() async {
+        guard !restorationAttempted,let service=service,service.mode == .live else { return }
+        restorationAttempted=true;loading=true;defer { loading=false }
+        do {
+            guard let restored=try await service.restoreSession() else { return }
+            let loaded=try await service.refresh()
+            session=restored;patients=loaded;issue=nil;now=Date();lastSuccessfulUpdate=now
+            patientLoadState=loaded.isEmpty ? .empty : .ready
+            await loadAlerts()
+        } catch { clearPresentation();issue = .signIn }
+    }
+    func signOut() async {
+        clearPresentation()
+        do { try await service?.logout() }
+        catch { issue = .signOut }
+    }
+    private func handleSessionFailure(_ error: Error) -> Bool {
+        if case ServiceError.sessionChanged=error { return true }
+        if case ServiceError.http(401)=error { clearPresentation();issue = .sessionExpired;return true }
+        return false
+    }
     func refresh() async {
         guard let service = service, session != nil else { return }
         if simulateConnectionFailure && dataMode == .mock {
@@ -120,20 +144,20 @@ final class DemoStore: ObservableObject {
         do {
             patients = try await service.refresh(); now = Date(); issue = nil; lastSuccessfulUpdate = now; patientLoadState = patients.isEmpty ? .empty : .ready; await loadAlerts()
             for id in Array(histories.keys) where patient(id) != nil { histories[id] = try await service.getHistory(patientID: id) }
-        } catch { self.issue = .refresh; patientLoadState = .failed }
+        } catch { if !handleSessionFailure(error) { self.issue = .refresh; patientLoadState = .failed } }
     }
     func loadPatientDetail(_ id: String) async {
         guard mode == .pro, patient(id) != nil, let service = service else { return }
         do {
             if let detail = try await service.getPatient(id:id), let index = patients.firstIndex(where: { $0.id == id }) { patients[index] = detail }
             else { patients.removeAll { $0.id == id }; issue = .detail }
-        } catch { issue = .detail }
+        } catch { if !handleSessionFailure(error) { issue = .detail } }
     }
     func loadHistory(_ id: String) async {
         guard patient(id) != nil, let service = service else { return }
         historyLoadStates[id] = .loading
         do { histories[id] = try await service.getHistory(patientID: id); historyLoadStates[id] = histories[id]?.isEmpty == true ? .empty : .ready }
-        catch { self.issue = .history; historyLoadStates[id] = .failed }
+        catch { if !handleSessionFailure(error) { self.issue = .history; historyLoadStates[id] = .failed } }
     }
     func applyScenario(_ scenario: Scenario, patientID: String) async {
         guard patient(patientID) != nil else { return }
@@ -197,9 +221,6 @@ final class DemoStore: ObservableObject {
         case .unavailable: return t("KY-005 备用模式", "KY-005 fallback mode")
         case .offline: return t("设备离线", "Device offline")
         case .stale: return t("数据过期", "Stale readings")
-        case .backend(let text): return text
-        case .backendPending: return t("等待后端状态判断", "Awaiting backend assessment")
-        case .backendStale: return t("后端判断已过期", "Backend assessment is stale")
         case .noData: return t("尚无数据", "No data yet")
         }
     }

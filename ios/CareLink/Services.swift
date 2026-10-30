@@ -8,6 +8,10 @@ enum Scenario: String, CaseIterable, Identifiable {
 protocol CareService {
     var rules: DemoRules { get }
     var mode: DataMode { get }
+    func authenticate(username: String, password: String, mode: AppMode) async throws -> Session
+    func logout() async throws
+    func restoreSession() async throws -> Session?
+    func rotateSession() async throws
     func getPatient(id: String) async throws -> Patient?
     func getPredictions(patientID: String) async throws -> [Prediction]
     func getAlerts() async throws -> [Alert]
@@ -17,7 +21,7 @@ protocol CareService {
     func getHistory(patientID: String) async throws -> [Reading]
     func refresh() async throws -> [Patient]
 }
-enum ServiceError: Error { case missingResource(String), configuration, invalidResponse, http(Int), forbidden, network }
+enum ServiceError: Error { case missingResource(String), configuration, invalidResponse, http(Int), forbidden, network, credentialStorage, authenticationBusy, sessionChanged }
 
 @MainActor
 final class MockCareService: CareService {
@@ -42,6 +46,13 @@ final class MockCareService: CareService {
         }
         try self.init(profiles: load("demo-patients", [Patient].self), rules: load("demo-rules", DemoRules.self), sessions: load("demo-sessions", DemoSessions.self))
     }
+    func authenticate(username: String, password: String, mode: AppMode) async throws -> Session {
+        guard DemoLogin.validate(username:username,password:password) == nil else { throw ServiceError.http(401) }
+        return try await getSession(mode:mode)
+    }
+    func logout() async throws { session=nil;ledger=DemoAlertLedger() }
+    func restoreSession() async throws -> Session? { nil } // Mock identities are not persisted.
+    func rotateSession() async throws { throw ServiceError.forbidden }
     func getSession(mode: AppMode) async throws -> Session { try checkConnection(); let value = mode == .pro ? sessions.pro : sessions.basic; session = value; return value }
     func getPatients() async throws -> [Patient] {
         try checkConnection()

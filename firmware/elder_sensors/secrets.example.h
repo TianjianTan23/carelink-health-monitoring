@@ -6,5 +6,5 @@ const char *WIFI_SSID = "YOUR_2_4_GHZ_WIFI";
 const char *WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
 
 // Use the Mac's LAN/hotspot address, not 127.0.0.1.
-// Example: http://172.20.10.2:8000/sensor-data
-const char *SERVER_URL = "http://YOUR_MAC_IP:8000/sensor-data";
+// Use the gateway origin whose current address matches the certificate SAN.
+const char *SERVER_URL = "https://YOUR_MAC_IP:19443/sensor-data";

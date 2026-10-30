@@ -22,7 +22,18 @@ enum Quality: String, Codable {
 }
 
 struct Metric: Codable { var value: Double?; var quality: Quality; var available: Bool? = nil }
-struct Metrics: Codable { var hr: Metric; var spo2: Metric; var temp: Metric }
+struct Metrics: Codable {
+    var hr: Metric; var spo2: Metric; var temp: Metric
+    init(hr: Metric, spo2: Metric = Metric(value:nil, quality:.unavailable, available:false), temp: Metric) {
+        self.hr=hr; self.spo2=spo2; self.temp=temp
+    }
+    enum CodingKeys: String, CodingKey { case hr, spo2, temp }
+    init(from decoder: Decoder) throws {
+        let c=try decoder.container(keyedBy:CodingKeys.self)
+        hr=try c.decode(Metric.self,forKey:.hr);temp=try c.decode(Metric.self,forKey:.temp)
+        spo2=c.contains(.spo2) ? try c.decode(Metric.self,forKey:.spo2) : Metric(value:nil,quality:.unavailable,available:false)
+    }
+}
 struct FallEvent: Codable { var active: Bool; var quality: Quality; var eventAt: Date? }
 struct Vector3: Codable { var x: Double; var y: Double; var z: Double }
 struct RawData: Codable {

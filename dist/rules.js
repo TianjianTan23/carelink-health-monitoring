@@ -29,11 +29,13 @@ export function triage(reading,rules=DEFAULT_RULES,now=Date.now()) {
   if(reading.fall?.active===true) { levels.push('red'); reasons.push('检测到跌倒事件 · 待人工核实'); }
   let incomplete=!fresh || reading.fall?.quality!=='good';
   if(!fresh) reasons.push(reading.connected?'数据已过期':'设备离线');
-  for(const key of Object.keys(METRICS)) {
+  // Display visibility does not decide whether a valid supplied metric matters.
+  const evaluated={...METRICS,...(reading.metrics?.spo2&&reading.metrics.spo2.available!==false?{spo2:{name:'血氧'}}:{})};
+  for(const key of Object.keys(evaluated)) {
     const m=reading.metrics?.[key];
-    if(!fresh || !usable(m)) { incomplete=true; if(fresh) reasons.push(`${METRICS[key].name}${m?.quality==='poor'?'信号不稳':'暂不可用'}`); continue; }
+    if(!fresh || !usable(m)) { incomplete=true; if(fresh) reasons.push(`${evaluated[key].name}${m?.quality==='poor'?'信号不稳':'暂不可用'}`); continue; }
     const level=severity(key,m.value,rules);levels.push(level);
-    if(level!=='green') reasons.push(`${METRICS[key].name}${level==='red'?'超出演示严重范围':'超出演示平稳范围'}`);
+    if(level!=='green') reasons.push(`${evaluated[key].name}${level==='red'?'超出演示严重范围':'超出演示平稳范围'}`);
   }
   if(reading.fall?.quality!=='good' && reading.fall?.active!==true) reasons.push('跌倒监测暂不可用');
   const level=levels.includes('red')?'red':levels.includes('yellow')?'yellow':incomplete?'unknown':'green';

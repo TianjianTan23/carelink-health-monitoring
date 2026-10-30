@@ -1,0 +1,18 @@
+{
+  "mode": "live",
+  "baseUrl": "https://gateway.example.invalid:8443",
+  "apiConfirmed": true,
+  "staleAfterSeconds": 30,
+  "endpoints": {
+    "login": "/api/login",
+    "logout": "/api/logout",
+    "session": "/api/session",
+    "patients": "/api/patients",
+    "patient": "/api/patients/{id}",
+    "readings": "/api/patients/{id}/readings?minutes=1440",
+    "predictions": "/api/patients/{id}/predictions",
+    "alerts": "/api/alerts",
+    "acknowledge": "/api/alerts/{id}/acknowledgement",
+    "rotate": "/api/session/rotate"
+  }
+}

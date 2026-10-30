@@ -21,26 +21,50 @@
     "test:legacy": "node --test tests/*.test.mjs",
     "test:react": "vitest run",
     "generate:tokens": "python3 scripts/generate-design-tokens.py",
-    "prebuild": "node scripts/generate-shared.mjs"
+    "prebuild": "node scripts/generate-shared.mjs",
+    "test:ios-security": "sh ios/test-security.sh",
+    "test:ios-tls": "sh ios/test-tls.sh",
+    "build:android": "node scripts/build-coursework.mjs android",
+    "build:demo": "node scripts/build-coursework.mjs web",
+    "demo:web": "node scripts/serve-coursework.mjs",
+    "demo:backend": ".venv/bin/python scripts/coursework-backend.py",
+    "android:sync": "npm run build:android && cap sync android",
+    "android:apk": "node scripts/build-android.mjs",
+    "android:open": "cap open android",
+    "test:android-policy": "node --test tests/android-policy.test.mjs",
+    "demo:stop": "python3 scripts/stop-coursework.py --stop",
+    "demo:status": "python3 scripts/stop-coursework.py",
+    "gateway:init": ".venv/bin/python scripts/local-gateway.py init",
+    "gateway:check": ".venv/bin/python scripts/local-gateway.py check",
+    "gateway:start": ".venv/bin/python scripts/local-gateway.py run",
+    "gateway:prepare": ".venv/bin/python scripts/local-gateway.py prepare",
+    "gateway:accounts": ".venv/bin/python scripts/local-gateway.py accounts",
+    "gateway:address": ".venv/bin/python scripts/local-gateway.py address",
+    "test:local-integration": ".venv/bin/python scripts/verify-local-integration.py --android",
+    "test:firmware": ".venv/bin/python scripts/test-device-signing.py",
+    "check:firmware": ".venv/bin/python scripts/check-firmware-build.py"
   },
   "engines": {
     "node": ">=22.19"
   },
   "dependencies": {
+    "@capacitor/android": "8.6.0",
+    "@capacitor/core": "8.6.0",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "zod": "^4.1.0"
   },
   "devDependencies": {
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "@types/node": "^22",
-    "typescript": "^5.9.3",
-    "vite": "8.3.5",
-    "vitest": "5.0.5",
-    "jsdom": "^27",
+    "@capacitor/cli": "8.6.0",
+    "@testing-library/jest-dom": "^6",
     "@testing-library/react": "^16",
     "@testing-library/user-event": "^14",
-    "@testing-library/jest-dom": "^6"
+    "@types/node": "^22",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "jsdom": "^27",
+    "typescript": "^5.9.3",
+    "vite": "8.3.5",
+    "vitest": "5.0.5"
   }
 }

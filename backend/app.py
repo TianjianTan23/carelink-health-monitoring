@@ -2,31 +2,33 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
-import base64
-import binascii
 import hashlib
-import hmac
 import json
+import math
 import os
 from pathlib import Path
-import secrets
 import sqlite3
 import time
 from typing import Any, Optional
 
-from fastapi import Cookie, Depends, FastAPI, HTTPException, Query, Response
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import Cookie, Depends, FastAPI, HTTPException, Query, Response, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, SecretStr, Field, ConfigDict
 
 from .classification_service import classify_values, model_info
+from .write_gate import UnifiedWriteGate, guarded_write
+from .device_auth import authenticated_sensor_payload, consume_receipt
+from .web_auth import store as auth_store, TTL, verify_password, bootstrap_accounts
+from .web_security import WebSecurity
+from .device_diagnostics import DeviceIngressDiagnostics, event as device_event
 
 
 ROOT = Path(__file__).resolve().parents[1]
 DATABASE_PATH = Path(
     os.environ.get("CARELINK_DATABASE_PATH", Path(__file__).with_name("carelink.db"))
 )
-SESSION_SECRET = os.environ.get("CARELINK_SESSION_SECRET", "carelink-local-coursework-session-secret")
 STALE_AFTER_SECONDS = 60
 PATIENT_ID = "ttj"
 
@@ -34,7 +36,7 @@ USERS = {
     "ttj": {
         "password_hash": os.environ.get(
             "CARELINK_PATIENT_PASSWORD_HASH",
-            "pbkdf2_sha256$310000$53dc2ceee3084f98f96cd4856c63f51c$31fb088bbd5b591c1b1f7934c8122ac9476d17b5bf2f59cb79926ef0bddfac08",
+            "",
         ),
         "role": "patient",
         "mode": "basic",
@@ -43,7 +45,7 @@ USERS = {
     "wyn": {
         "password_hash": os.environ.get(
             "CARELINK_NURSE_PASSWORD_HASH",
-            "pbkdf2_sha256$310000$3d9a2490e6d6163860f0c2a0b7ba3df4$9dc10d8bd44c3e70a6025b8dd7eb49922ca1d322b17f7963fb5df1462474d348",
+            "",
         ),
         "role": "clinician",
         "mode": "pro",
@@ -63,8 +65,9 @@ PATIENT = {
 }
 
 class LoginRequest(BaseModel):
-    username: str
-    password: str
+    model_config = ConfigDict(extra="forbid")
+    username: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_.-]+$")
+    password: SecretStr = Field(min_length=1, max_length=1024)
 
 
 class ClassificationRequest(BaseModel):
@@ -78,56 +81,91 @@ def utc_now() -> str:
 
 
 def _verify_password(password: str, encoded: str) -> bool:
-    """Verify a salted PBKDF2-SHA256 password hash in constant time."""
-    try:
-        algorithm, iterations_raw, salt_hex, expected_hex = encoded.split("$", 3)
-        if algorithm != "pbkdf2_sha256":
-            return False
-        candidate = hashlib.pbkdf2_hmac(
-            "sha256",
-            password.encode("utf-8"),
-            bytes.fromhex(salt_hex),
-            int(iterations_raw),
-        ).hex()
-        return hmac.compare_digest(candidate, expected_hex)
-    except (TypeError, ValueError):
-        return False
-
-
-def _create_session_token(username: str) -> str:
-    expires_at = int(time.time()) + 8 * 60 * 60
-    payload = f"{username}:{expires_at}"
-    signature = hmac.new(SESSION_SECRET.encode(), payload.encode(), hashlib.sha256).hexdigest()
-    return base64.urlsafe_b64encode(f"{payload}:{signature}".encode()).decode().rstrip("=")
+    return verify_password(password, encoded)[0]
 
 
 def _read_session_token(token: Optional[str]) -> Optional[str]:
-    if not token:
-        return None
-    try:
-        padded = token + "=" * (-len(token) % 4)
-        username, expires_raw, supplied_signature = base64.urlsafe_b64decode(padded).decode().rsplit(":", 2)
-        payload = f"{username}:{expires_raw}"
-        expected_signature = hmac.new(SESSION_SECRET.encode(), payload.encode(), hashlib.sha256).hexdigest()
-        if not hmac.compare_digest(supplied_signature, expected_signature):
-            return None
-        if int(expires_raw) < int(time.time()) or username not in USERS:
-            return None
-        return username
-    except (ValueError, UnicodeDecodeError, binascii.Error):
-        return None
+    return auth_store().username(token)
+
+
+class LeasedCursor(sqlite3.Cursor):
+    def execute(self,*args,**kwargs):
+        self.connection.require_execution(args[0]);return super().execute(*args,**kwargs)
+    def executemany(self,*args,**kwargs):
+        self.connection.require_execution(args[0]);return super().executemany(*args,**kwargs)
+    def executescript(self,*args,**kwargs):
+        self.connection.require_execution(args[0],script=True);return super().executescript(*args,**kwargs)
+
+
+class LeasedConnection(sqlite3.Connection):
+    def require_execution(self,sql,script=False):
+        self.require_lease()
+        if getattr(self,'_read_only',False) and (script or not sql.lstrip().upper().startswith('SELECT ')):
+            raise sqlite3.OperationalError('Read-only database lease')
+    def require_lease(self):
+        from .write_gate import CURRENT
+        lease=getattr(self,'_lease',None)
+        if not lease or not lease['valid'] or CURRENT.get() is not lease:
+            raise sqlite3.OperationalError('Active database write lease required')
+    def execute(self,*args,**kwargs):
+        return self.cursor().execute(*args,**kwargs)
+    def executemany(self,*args,**kwargs):
+        return self.cursor().executemany(*args,**kwargs)
+    def executescript(self,*args,**kwargs):
+        return self.cursor().executescript(*args,**kwargs)
+    def cursor(self,*args,**kwargs):
+        self.require_lease()
+        if args or kwargs:raise sqlite3.OperationalError('Custom cursor factories are unavailable')
+        return super().cursor(factory=LeasedCursor)
+    def commit(self):self.require_lease();return super().commit()
+    def rollback(self):self.require_lease();return super().rollback()
+    def __enter__(self):self.require_lease();return self
+    def __exit__(self,kind,value,tb):
+        try:
+            if kind is None:self.commit()
+            else:super().rollback()
+        finally:self.close()
+    def close(self):
+        guard=getattr(self,'_guard',None)
+        self._guard=None
+        try:super().close() # Always rolls back uncommitted work, even after lease loss.
+        finally:
+            if guard is not None:guard.__exit__(None,None,None)
 
 
 def connect() -> sqlite3.Connection:
-    connection = sqlite3.connect(DATABASE_PATH, timeout=15)
-    connection.row_factory = sqlite3.Row
-    connection.execute("PRAGMA foreign_keys=ON")
-    connection.execute("PRAGMA busy_timeout=15000")
-    return connection
+    from .write_gate import CURRENT,write_lease,ControlError
+    existing=CURRENT.get()
+    read_only=not (existing and existing['valid'])
+    guard=write_lease()
+    try:guard.__enter__()
+    except ControlError:raise HTTPException(503,'Database reception frozen or unavailable') from None
+    connection=None
+    try:
+        from .storage_paths import validate_storage_paths
+        validate_storage_paths(readings=DATABASE_PATH)
+        connection=sqlite3.connect(DATABASE_PATH.absolute().as_uri()+"?mode=rw",uri=True,timeout=15,cached_statements=0,factory=LeasedConnection)
+        connection._lease=CURRENT.get();connection._guard=guard
+        connection.row_factory=sqlite3.Row
+        connection.execute('PRAGMA foreign_keys=ON');connection.execute('PRAGMA busy_timeout=15000')
+        if read_only:
+            connection.execute('PRAGMA query_only=ON')
+            connection._read_only=True
+        return connection
+    except BaseException:
+        if connection is not None:connection.close()
+        else:guard.__exit__(None,None,None)
+        raise
 
 
+@guarded_write
 def initialize_database() -> None:
+    from .storage_paths import validate_storage_paths
+    validate_storage_paths(readings=DATABASE_PATH)
     DATABASE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    if not DATABASE_PATH.exists():
+        fd=os.open(DATABASE_PATH,os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o600)
+        os.close(fd)
     with connect() as connection:
         connection.execute("PRAGMA journal_mode=WAL")
         connection.execute(
@@ -185,7 +223,11 @@ def initialize_database() -> None:
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI):
+async def lifespan(application: FastAPI):
+    if getattr(application.state, "web_auth_enabled", True):
+        if auth_store().path.resolve() == DATABASE_PATH.resolve():
+            raise RuntimeError("Auth and readings databases must be separate")
+        auth_store().initialize({} if auth_store().marker.exists() else bootstrap_accounts(USERS))
     initialize_database()
     model_info()
     yield
@@ -197,17 +239,19 @@ app = FastAPI(
     version="3.0.0",
     lifespan=lifespan,
 )
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://127.0.0.1:5173", "http://localhost:5173"],
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PATCH"],
-    allow_headers=["Content-Type", "Accept"],
-)
+app.add_middleware(WebSecurity)
+app.add_middleware(UnifiedWriteGate)
+app.add_middleware(DeviceIngressDiagnostics)
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error(request: Request, exc: RequestValidationError):
+    # FastAPI's default includes rejected input values, including login secrets.
+    return JSONResponse(status_code=422, content={"detail": "Invalid request data"})
 
 
 def _session_payload(username: str) -> dict[str, Any]:
-    account = USERS[username]
+    account = auth_store().account(username)
     return {
         "userId": username,
         "role": account["role"],
@@ -224,14 +268,15 @@ def current_username(carelink_session: Optional[str] = Cookie(default=None)) -> 
 
 
 def _ensure_scope(username: str, patient_id: str) -> None:
-    if patient_id not in USERS[username]["patient_ids"]:
+    if patient_id not in auth_store().account(username)["patient_ids"]:
         raise HTTPException(status_code=403, detail="Patient is outside this account's scope")
 
 
 def _number(value: Any) -> Optional[float]:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         return None
-    return float(value)
+    number = float(value)
+    return number if math.isfinite(number) else None
 
 
 def _first(payload: dict[str, Any], *candidates: tuple[str, ...]) -> Any:
@@ -248,11 +293,28 @@ def _first(payload: dict[str, Any], *candidates: tuple[str, ...]) -> Any:
 
 
 def _extract(payload: dict[str, Any]) -> tuple[Optional[float], Optional[float], Optional[bool]]:
-    heart = _number(_first(payload, ("heart_rate_bpm",), ("heart_rate_display_bpm",), ("heart_rate", "bpm"), ("heart_rate", "display_bpm")))
+    heart_ok = _first(payload, ("heart_rate_ok",), ("heart_rate", "ok"))
+    heart = _number(_first(payload, ("heart_rate_bpm",), ("heart_rate", "bpm")))
+    # A held LCD/display value is historical, not a new pulse measurement.
+    if heart is None and heart_ok is True and payload.get("heart_rate_held") is not True:
+        heart = _number(_first(payload, ("heart_rate_display_bpm",), ("heart_rate", "display_bpm")))
+    if heart_ok is False or payload.get("heart_rate_held") is True:
+        heart = None
     temperature = _number(_first(payload, ("object_temp_c",), ("mlx90614", "object_temp_c"), ("temperature",)))
+    if _first(payload, ("mlx90614_ok",), ("mlx90614", "ok")) is False:
+        temperature = None
     fall_raw = _first(payload, ("fall_detected",), ("mpu6050", "fall_detected"), ("alarm",))
     fall = bool(fall_raw) if isinstance(fall_raw, (bool, int)) else None
+    if _first(payload, ("mpu6050_ok",), ("mpu6050", "ok")) is False:
+        fall = None
     return heart, temperature, fall
+
+
+def _oxygen(payload: dict[str, Any]) -> Optional[float]:
+    value = _number(_first(payload, ("spo2_percent",), ("spo2", "percent"), ("max30102", "spo2"), ("spo2",)))
+    if _first(payload, ("spo2_ok",), ("spo2", "ok"), ("max30102", "ok")) is False:
+        return None
+    return value
 
 
 def _validate_inputs(heart: Optional[float], temperature: Optional[float], fall: Optional[bool]) -> list[dict[str, Any]]:
@@ -326,8 +388,14 @@ def _store_alerts(
     prediction: Optional[dict[str, Any]],
     validation_errors: list[dict[str, Any]],
     timestamp: str,
+    oxygen: Optional[float] = None,
 ) -> None:
     active_keys: set[str] = set()
+    if oxygen is not None and 0 < oxygen <= 100 and oxygen < 95:
+        active_keys.add("abnormal:spo2_percent")
+        _upsert_alert(connection, alert_key="abnormal:spo2_percent", alert_type="abnormal_parameter",
+                      severity="red" if oxygen < 90 else "yellow", summary="Device reported low SpO2; verify the sensor and patient.",
+                      details={"parameter":"spo2_percent","value":oxygen,"source":"optional_sensor"}, timestamp=timestamp, reading_id=reading_id)
     for error in validation_errors:
         key = f"{error['kind']}:{error['parameter']}"
         active_keys.add(key)
@@ -369,6 +437,7 @@ def _store_alerts(
     _resolve_inactive_alerts(connection, active_keys, timestamp)
 
 
+@guarded_write
 def _ensure_connectivity_alert() -> None:
     now = datetime.now(timezone.utc)
     with connect() as connection:
@@ -417,7 +486,8 @@ def _raw_vector(raw: dict[str, Any]) -> Optional[dict[str, float]]:
 
 
 def _prediction_from_row(row: Any) -> dict[str, Any]:
-    if row["label"] is None:
+    validation = _validate_inputs(*_extract(json.loads(row["raw_json"])))
+    if row["label"] is None or validation:
         return {
             "state": "unavailable",
             "id": f"prediction-{row['id']}",
@@ -426,7 +496,7 @@ def _prediction_from_row(row: Any) -> dict[str, Any]:
             "inputsMeasuredAt": row["created_at"],
             "model": row["model_name"],
             "modelVersion": row["model_version"],
-            "result": {"label": None, "abnormal_params": json.loads(row["validation_errors"])},
+            "result": {"label": None, "abnormal_params": validation or json.loads(row["validation_errors"])},
             "confidence": None,
             "confidenceMeaning": "No model output because required sensor data was missing or invalid.",
             "source": "backend",
@@ -448,17 +518,27 @@ def _prediction_from_row(row: Any) -> dict[str, Any]:
 
 def _reading_from_row(row: Any) -> dict[str, Any]:
     raw = json.loads(row["raw_json"])
-    validation = json.loads(row["validation_errors"])
+    heart, temperature, fall = _extract(raw)
+    validation = _validate_inputs(heart, temperature, fall)
     abnormal = json.loads(row["abnormal_params"])
     timestamp = datetime.fromisoformat(row["created_at"])
     connected = (datetime.now(timezone.utc) - timestamp).total_seconds() <= STALE_AFTER_SECONDS
-    heart_valid = row["heart_rate"] is not None and 30 <= row["heart_rate"] <= 250
-    temperature_valid = row["temperature"] is not None and 30 <= row["temperature"] <= 45
-    fall_available = row["fall_detected"] is not None
-    level = {"normal": "green", "warning": "yellow", "critical": "red"}.get(row["label"], "unknown")
-    reasons = [item["reason"] for item in abnormal] or [item["reason"] for item in validation]
+    heart_valid = heart is not None and 30 <= heart <= 250
+    # The classifier's 30–45 °C domain is not the surface sensor's validity flag.
+    temperature_valid = temperature is not None
+    fall_available = fall is not None
+    oxygen = _oxygen(raw)
+    oxygen_valid = oxygen is not None and 0 < oxygen <= 100
+    level = "unknown" if validation else {"normal": "green", "warning": "yellow", "critical": "red"}.get(row["label"], "unknown")
+    reasons = [item["reason"] for item in validation] if validation else [item["reason"] for item in abnormal]
     if not reasons:
         reasons = ["The trained model classified the complete sensor snapshot as normal."]
+    if oxygen_valid and oxygen < 95:
+        level = "red" if oxygen < 90 or level == "red" else "yellow"
+        reasons.append("Optional sensor reports low SpO2; verify the reading and patient.")
+    elif oxygen is not None and not oxygen_valid:
+        if level == "green": level = "unknown"
+        reasons.append("Optional SpO2 sample is outside 0–100%; do not treat it as a valid reading.")
     assessment = {
         "level": level,
         "reasons": reasons,
@@ -473,10 +553,11 @@ def _reading_from_row(row: Any) -> dict[str, Any]:
         "receivedAt": row["created_at"],
         "connected": connected,
         "metrics": {
-            "hr": {"value": row["heart_rate"], "quality": "good" if heart_valid else "poor" if row["heart_rate"] is not None else "unavailable", "available": row["heart_rate"] is not None},
-            "temp": {"value": row["temperature"], "quality": "good" if temperature_valid else "poor" if row["temperature"] is not None else "unavailable", "available": row["temperature"] is not None},
+            "hr": {"value": heart, "quality": "good" if heart_valid else "poor" if heart is not None else "unavailable", "available": heart is not None},
+            "temp": {"value": temperature, "quality": "good" if temperature_valid else "unavailable", "available": temperature_valid},
+            **({"spo2": {"value": oxygen, "quality": "good" if oxygen_valid else "poor" if oxygen is not None else "unavailable", "available": oxygen is not None}} if any(key in raw for key in ("spo2_percent","spo2","max30102")) else {}),
         },
-        "fall": {"active": bool(row["fall_detected"]), "quality": "good" if fall_available else "unavailable", "eventAt": row["created_at"] if row["fall_detected"] else None},
+        "fall": {"active": bool(fall), "quality": "good" if fall_available else "unavailable", "eventAt": row["created_at"] if fall else None},
         "raw": {
             "accel_m_s2": _raw_vector(raw),
             "gyro_deg_s": None,
@@ -486,7 +567,7 @@ def _reading_from_row(row: Any) -> dict[str, Any]:
             "ambient_temperature_c": _number(_first(raw, ("ambient_temp_c",), ("mlx90614", "ambient_temp_c"))),
         },
         "ai": _prediction_from_row(row),
-        "source": "device",
+        "source": "mock" if os.environ.get("CARELINK_DATA_ORIGIN") == "simulation" or raw.get("data_source") in ("simulation", "simulated", "coursework-simulator") else "device",
         "assessment": assessment,
     }
 
@@ -501,34 +582,49 @@ def health() -> dict[str, Any]:
     return {"status": "ok", "service": "carelink-api", "model": model_info().get("selected_model")}
 
 
+def _set_session_cookie(response: Response, token: str, max_age: int = TTL):
+    response.set_cookie("carelink_session", token, httponly=True, samesite="lax",
+                        secure=True, max_age=max_age, path="/")
+
+
 @app.post("/api/login")
-def login(request: LoginRequest, response: Response) -> dict[str, Any]:
+def login(request: LoginRequest, response: Response, connection: Request,
+          carelink_session: Optional[str] = Cookie(default=None)) -> dict[str, Any]:
+    password = request.password.get_secret_value()
+    if len(password.encode("utf-8")) > 1024:
+        raise HTTPException(422, "Invalid request data")
     username = request.username.strip().lower()
-    account = USERS.get(username)
-    if not account or not _verify_password(request.password, str(account["password_hash"])):
-        raise HTTPException(status_code=401, detail="Invalid user ID or password")
-    token = _create_session_token(username)
-    response.set_cookie(
-        "carelink_session",
-        token,
-        httponly=True,
-        samesite="lax",
-        secure=False,
-        max_age=8 * 60 * 60,
-        path="/",
-    )
+    token = auth_store().login(username, password,
+                              connection.client.host if connection.client else "unknown", carelink_session)
+    _set_session_cookie(response, token)
     return _session_payload(username)
 
 
 @app.post("/api/logout")
 def logout(response: Response, carelink_session: Optional[str] = Cookie(default=None)) -> dict[str, str]:
-    response.delete_cookie("carelink_session", path="/", secure=False, samesite="lax")
+    auth_store().revoke(carelink_session)
+    response.delete_cookie("carelink_session", path="/", secure=True, httponly=True, samesite="lax")
     return {"status": "signed_out"}
+
+
+@app.post("/api/session/rotate")
+def rotate_session(response: Response, carelink_session: Optional[str] = Cookie(default=None)) -> dict[str, str]:
+    token, remaining = auth_store().rotate(carelink_session)
+    _set_session_cookie(response, token, remaining)
+    return {"status": "rotated"}
 
 
 @app.get("/api/session")
 def session(username: str = Depends(current_username)) -> dict[str, Any]:
     return _session_payload(username)
+
+
+@app.get("/api/gateway")
+def gateway_info(_: str = Depends(current_username)) -> dict[str, Any]:
+    # Configuration provenance is not evidence that physical hardware is online.
+    mode = os.environ.get("CARELINK_DATA_ORIGIN", "unspecified")
+    return {"mode":mode, "sensorPath":"/sensor-data", "serverPatientId":PATIENT_ID,
+            "hasAutomaticSimulator":mode == "simulation", "staleAfterSeconds":STALE_AFTER_SECONDS}
 
 
 @app.get("/api/patients")
@@ -573,7 +669,7 @@ def predictions(patient_id: str, username: str = Depends(current_username)) -> l
 @app.get("/api/alerts")
 def alerts(username: str = Depends(current_username)) -> list[dict[str, Any]]:
     _ensure_connectivity_alert()
-    patient_ids = USERS[username]["patient_ids"]
+    patient_ids = auth_store().account(username)["patient_ids"]
     placeholders = ",".join("?" for _ in patient_ids)
     with connect() as connection:
         rows = connection.execute(
@@ -601,8 +697,9 @@ def alerts(username: str = Depends(current_username)) -> list[dict[str, Any]]:
 
 
 @app.post("/api/alerts/{alert_id}/acknowledgement")
+@guarded_write
 def acknowledge(alert_id: str, username: str = Depends(current_username)) -> dict[str, Any]:
-    if USERS[username]["role"] != "clinician":
+    if auth_store().account(username)["role"] != "clinician":
         raise HTTPException(status_code=403, detail="Nurse role required")
     try:
         numeric_id = int(alert_id.removeprefix("alert-"))
@@ -639,7 +736,9 @@ def classify(request: ClassificationRequest, _: str = Depends(current_username))
 
 
 @app.post("/sensor-data")
-def receive_sensor_data(payload: dict[str, Any]) -> dict[str, Any]:
+@guarded_write
+def receive_sensor_data(payload: dict[str, Any] = Depends(authenticated_sensor_payload)) -> dict[str, Any]:
+    consume_receipt(payload)
     device_id = payload.get("device_id")
     if not isinstance(device_id, str) or not device_id.strip():
         raise HTTPException(status_code=422, detail="device_id is required")
@@ -672,7 +771,8 @@ def receive_sensor_data(payload: dict[str, Any]) -> dict[str, Any]:
             ),
         )
         reading_id = int(cursor.lastrowid)
-        _store_alerts(connection, reading_id, prediction, validation_errors, timestamp)
+        _store_alerts(connection, reading_id, prediction, validation_errors, timestamp, _oxygen(payload))
+    device_event('readings_committed')
     return {
         "status": "received",
         "id": reading_id,

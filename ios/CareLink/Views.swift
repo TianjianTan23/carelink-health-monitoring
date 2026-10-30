@@ -28,10 +28,11 @@ struct RootView: View {
             }
         }
         .task {
+            await store.restoreLogin()
             while !Task.isCancelled {
                 do { try await Task.sleep(nanoseconds: 5_000_000_000) } catch { break }
                 store.now = Date()
-                if scenePhase == .active && store.autoRefresh && store.dataMode == .mock && store.session != nil { await store.refresh() }
+                if scenePhase == .active && store.autoRefresh && store.session != nil { await store.refresh() }
             }
         }
     }
@@ -68,79 +69,40 @@ struct ErrorNotice: View {
 @MainActor
 struct LoginView: View {
     @EnvironmentObject private var store: DemoStore
-    @State private var mode: AppMode = .pro
-    @State private var username = "demo@carelink.example"
-    @State private var password = "demo1234"
-    @State private var issue: LoginIssue?
-    @State private var showPassword = false
-    @FocusState private var focusedField: LoginField?
-    private enum LoginField: Hashable { case username, password }
-    private var issueText: String? {
-        switch issue {
-        case .usernameRequired: return store.t("请输入邮箱或用户名。", "Enter an email or username.")
-        case .passwordRequired: return store.t("请输入演示密码。", "Enter the demo password.")
-        case .rejected: return store.t("登录失败（模拟）：演示密码为 demo1234。", "Sign-in failed (simulated): the demo password is demo1234.")
-        case nil: return nil
-        }
-    }
+    @State private var mode: AppMode = .basic
+    @State private var username=""
+    @State private var password=""
+    @State private var incomplete=false
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: CareDesign.Space.s24) {
-                    Image(systemName: "heart.fill").font(.system(size: 34, weight: .medium)).foregroundStyle(Color("AccentColor"))
-                        .frame(width: 76, height: 76).background(Color("CareMint"), in: RoundedRectangle(cornerRadius: CareDesign.Corner.dialog, style: .continuous)).padding(.top, CareDesign.Space.s24).accessibilityHidden(true)
+                VStack(alignment:.leading,spacing:24) {
                     Text("CareLink").font(.largeTitle.bold())
-                    Text(store.t("把关心，连接起来", "Keep care connected")).font(.title2)
-                    Text(store.t("让专业照护与家人的牵挂，时刻相伴。", "A shared space for professional care and family connection.")).foregroundStyle(.secondary)
-                    if store.dataMode == .mock {
-                    Picker(store.t("演示模式", "Demo mode"), selection: $mode) {
-                        Text("Pro").tag(AppMode.pro); Text("Basic").tag(AppMode.basic)
-                    }.pickerStyle(.segmented).accessibilityIdentifier("loginMode")
-                    Label(mode == .pro ? store.t("医护视角：多患者、历史、原始数据与 AI", "Clinician view: multiple patients, history, raw data & AI") : store.t("患者/家属视角：已关联患者的四项关键指标", "Patient/family view: four key metrics for your linked patient"), systemImage: mode == .pro ? "person.2" : "heart")
-                        .font(.subheadline)
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text(store.t("邮箱或用户名", "Email or username")).font(.subheadline)
-                        TextField(store.t("演示用户名", "Demo username"), text: $username)
-                            .textInputAutocapitalization(.never).autocorrectionDisabled().textFieldStyle(.plain)
-                            .keyboardType(.emailAddress).submitLabel(.next).focused($focusedField, equals: .username)
-                            .onSubmit { focusedField = .password }
-                            .padding(CareDesign.Space.s12).background(Color("CareBackground"), in: RoundedRectangle(cornerRadius: CareDesign.Corner.control))
-                            .accessibilityIdentifier("loginUsername")
-                        Text(store.t("密码", "Password")).font(.subheadline)
-                        HStack {
-                            Group {
-                                if showPassword { TextField(store.t("演示密码", "Demo password"), text: $password) }
-                                else { SecureField(store.t("演示密码", "Demo password"), text: $password) }
-                            }.textInputAutocapitalization(.never).autocorrectionDisabled()
-                                .focused($focusedField, equals: .password).accessibilityIdentifier("loginPassword")
-                            Button { showPassword.toggle() } label: { Image(systemName: showPassword ? "eye.slash" : "eye").frame(minWidth: 44, minHeight: 44) }
-                                .accessibilityLabel(showPassword ? store.t("隐藏密码", "Hide password") : store.t("显示密码", "Show password"))
-                        }.padding(CareDesign.Space.s12).background(Color("CareBackground"), in: RoundedRectangle(cornerRadius: CareDesign.Corner.control))
-                        if let text = issueText {
-                            Label(text, systemImage: "exclamationmark.circle").font(.footnote).foregroundStyle(Color("CareRed"))
-                                .accessibilityIdentifier("loginError")
-                        }
-                    }
-                    .careCard()
-                    Text(store.t("预填虚构账号，密码 demo1234。请勿输入真实凭据。", "Fictional account prefilled; password: demo1234. Do not enter real credentials."))
-                        .font(.caption).foregroundStyle(.secondary)
-                    } else {
-                        Text(store.t("使用后端已认证会话，角色和患者范围由服务器决定。此页面不发送账号密码。", "Use an authenticated backend session. Server determines role and patient scope; this screen does not send credentials.")).font(.subheadline)
-                    }
-                    Button {
-                        issue = store.dataMode == .mock ? DemoLogin.validate(username: username, password: password) : nil
-                        if issue == nil { Task { await store.signIn(mode) } }
-                    } label: {
-                        HStack { if store.loading { ProgressView().tint(.white) }; Text(store.dataMode == .mock ? store.t("登录演示", "Sign in to demo") : store.t("读取已认证会话", "Load authenticated session")); Spacer(); Image(systemName: "arrow.right") }
-                            .frame(minHeight: 32)
-                    }.buttonStyle(.borderedProminent).controlSize(.large).clipShape(RoundedRectangle(cornerRadius: CareDesign.Corner.control)).disabled(store.loading || !store.configured).accessibilityIdentifier("enterDemo")
-                    ErrorNotice()
                     DemoNotice()
-                    Text(store.dataMode == .mock ? store.t("此登录仅模拟表单交互，不验证真实身份。后端和 AI 尚未接入。", "This form simulates sign-in only and does not verify real identity. Backend and AI are not connected.") : store.t("接口契约仍需与组员确认；不会将 API 失败替换成模拟数据。", "The contract still needs team confirmation. API failures never substitute mock data."))
-                        .font(.footnote).foregroundStyle(.secondary)
-                }.padding(CareDesign.Space.s24)
-            }.background(Color("CareBackground"))
-                .toolbar { ToolbarItem(placement: .topBarTrailing) { LanguageButton() } }
+                    if store.dataMode == .mock {
+                        Picker(store.t("演示模式","Demo mode"),selection:$mode) {
+                            Text("Pro").tag(AppMode.pro);Text("Basic").tag(AppMode.basic)
+                        }.pickerStyle(.segmented)
+                        Text(store.t("仅演示：用户名 demo，密码 demo1234。","Demo only: username demo, password demo1234.")).font(.caption)
+                    }
+                    TextField(store.t("用户名","Username"),text:$username)
+                        .textInputAutocapitalization(.never).autocorrectionDisabled().textContentType(.username)
+                        .accessibilityIdentifier("loginUsername")
+                    SecureField(store.t("密码","Password"),text:$password)
+                        .textContentType(.password).privacySensitive().accessibilityIdentifier("loginPassword")
+                    if incomplete { Text(store.t("请输入用户名和密码。","Enter a username and password.")).foregroundStyle(.red) }
+                    if let error=store.error { Text(error).foregroundStyle(.red).accessibilityIdentifier("loginError") }
+                    Button {
+                        incomplete=username.isEmpty || password.isEmpty
+                        if !incomplete {
+                            let submitted=password;password=""
+                            Task { await store.signIn(mode,username:username,password:submitted) }
+                        }
+                    } label: {
+                        HStack { if store.loading { ProgressView() };Text(store.t("登录","Sign in")) }
+                    }.buttonStyle(.borderedProminent).disabled(store.loading || !store.configured)
+                }.padding().careCard()
+            }.navigationTitle(store.t("安全登录","Secure sign-in"))
         }
     }
 }

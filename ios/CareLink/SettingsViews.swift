@@ -58,7 +58,7 @@ struct AccountView: View {
                 Text(store.t("演示角色切换不验证身份。正式应用由后端会话决定角色及患者权限。", "Demo mode switching does not verify identity. The real backend session must determine roles and patient access."))
                     .font(.footnote).foregroundStyle(.secondary)
                 if store.dataMode == .mock { Button(store.mode == .pro ? store.t("体验 Basic 模式", "Try Basic mode") : store.t("体验 Pro 模式", "Try Pro mode")) {
-                    Task { await store.signIn(store.mode == .pro ? .basic : .pro) }
+                    Task { await store.signIn(store.mode == .pro ? .basic : .pro,username:"demo",password:"demo1234") }
                 } }
             }
             Section(store.t("偏好", "Preferences")) {
@@ -74,7 +74,7 @@ struct AccountView: View {
                 Text(store.t("MPU6050：运动/跌倒；MLX90614：表面温度；MAX30102：心率/血氧。LCD 1602A 由 ESP32 显示，不是手机端的替代程序。", "MPU6050: motion/fall; MLX90614: surface temperature; MAX30102: HR/SpO₂. The ESP32's LCD 1602A is a separate device display."))
                     .font(.footnote).foregroundStyle(.secondary)
             }
-            Section { Button(store.t("退出演示", "Exit demo"), role: .destructive) { store.signOut() } }
+            Section { Button(store.t("退出登录", "Sign out"), role: .destructive) { Task { await store.signOut() } } }
         }.navigationTitle(store.t("账户", "Account"))
     }
 }

@@ -7,8 +7,11 @@ swiftc -parse-as-library -module-cache-path "$task_tmp/modules" \
   "$task_root/ios/CareLink/Models.swift" \
   "$task_root/ios/CareLink/Monitoring.swift" \
   "$task_root/ios/CareLink/Services.swift" \
+  "$task_root/ios/CareLink/SessionCredentials.swift" \
+  "$task_root/ios/CareLink/SecureTransport.swift" \
   "$task_root/ios/CareLink/LiveApiService.swift" \
   "$task_root/ios/CareLink/InteractionModels.swift" \
+  "$task_root/ios/CoreTests/MemorySessionStore.swift" \
   "$task_root/ios/CoreTests/CoreChecks.swift" \
   -o "$task_tmp/carelink-core-checks"
 "$task_tmp/carelink-core-checks" "$task_root/shared"

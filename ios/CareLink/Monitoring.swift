@@ -47,7 +47,7 @@ enum Monitoring {
         var incomplete = !fresh || reading.fall.quality != .good
         if reading.fall.active { levels.append(.red); reasons.append(.fall) }
         if !fresh { reasons.append(reading.connected ? .stale : .offline) }
-        for key in MetricKey.allCases {
+        for key in MetricKey.allCases where key != .spo2 || reading.metrics.spo2.available != false {
             let metric = key.metric(in: reading)
             guard fresh, usable(metric), let value = metric.value else {
                 incomplete = true
@@ -70,7 +70,7 @@ enum Monitoring {
     }
     static func liveReport(_ reading: Reading?, rules: DemoRules, now: Date = Date()) -> StatusReport {
         guard let reading = reading else { return StatusReport(level: .unknown, reasons: [.noData], incomplete: true) }
-        let incomplete = !isFresh(reading, rules: rules, now: now) || MetricKey.allCases.contains { !usable($0.metric(in: reading)) } || reading.fall.quality != .good
+        let incomplete = !isFresh(reading, rules: rules, now: now) || MetricKey.allCases.filter { $0 != .spo2 || reading.metrics.spo2.available != false }.contains { !usable($0.metric(in: reading)) } || reading.fall.quality != .good
         if let assessment = reading.assessment {
             let age = now.timeIntervalSince(assessment.assessedAt)
             let stale = age > rules.staleAfterSeconds || age < -5

@@ -46,13 +46,14 @@ export class LiveApiService implements DataService {
   private session:z.infer<typeof SessionSchema>|null=null;
   private readonly config:AppConfig;
   private readonly transport:typeof fetch;
-  constructor(config:AppConfig,transport?:typeof fetch){this.transport=transport??browserTransport;this.config=validateConfig(config);if(config.mode!=='live')throw new DataError('configuration','LiveApiService requires explicit live configuration');this.rules={...structuredClone(demoRules),staleAfterSeconds:config.staleAfterSeconds};}
+  constructor(config:AppConfig,transport?:typeof fetch){this.transport=transport??browserTransport;this.config=validateConfig(config);if(config.mode!=='live')throw new DataError('configuration','LiveApiService requires explicit live configuration');this.rules={...structuredClone(demoRules),staleAfterSeconds:6};}
   private path(key:keyof AppConfig['endpoints'],id?:string){return this.config.endpoints[key].replace('{id}',encodeURIComponent(id??''));}
   private async request<T>(path:string,schema:z.ZodType<T>,options:RequestInit={},empty?:T):Promise<T>{
     let response:Response;
-    try{response=await this.transport(this.config.baseUrl.replace(/\/$/,'')+path,{...options,cache:'no-store',credentials:'include',headers:{Accept:'application/json',...(options.body?{'Content-Type':'application/json'}:{}),...options.headers},signal:timeoutSignal(8000)});}
+    try{response=await this.transport(this.config.baseUrl.replace(/\/$/,'')+path,{...options,cache:'no-store',credentials:'include',headers:{Accept:'application/json',...(options.body?{'Content-Type':'application/json'}:{}),...(!['GET','HEAD','OPTIONS'].includes(options.method??'GET')?{'X-CareLink-CSRF':'1'}:{}),...options.headers},signal:timeoutSignal(8000)});}
     catch{throw new DataError('network','Network request failed or timed out');}
     if(response.status===204&&empty!==undefined)return empty;
+    if(response.status===401)this.session=null;
     if(!response.ok)throw new DataError(response.status===403?'forbidden':'http',`API HTTP ${response.status}`,response.status);
     let data:unknown;try{data=await response.json();}catch{throw new DataError('invalid_data','API did not return JSON');}
     const result=schema.safeParse(data);if(!result.success)throw new DataError('invalid_data','Response does not match the proposed CareLink JSON contract');
@@ -60,7 +61,9 @@ export class LiveApiService implements DataService {
   }
   private allowed(id:string){if(!this.session?.patientIds.includes(id))throw new DataError('forbidden','Patient is outside authenticated session scope');}
   async authenticate(username:string,password:string){this.session=await this.request(this.path('login'),SessionSchema,{method:'POST',body:JSON.stringify({username,password})});return structuredClone(this.session);}
-  async logout(){try{await this.transport(this.config.baseUrl.replace(/\/$/,'')+this.path('logout'),{method:'POST',cache:'no-store',credentials:'include',headers:{Accept:'application/json'},signal:timeoutSignal(8000)});}catch{/* Local sign-out still clears the UI session. */}this.session=null;}
+  async logout(){try{await this.request(this.path('logout'),z.object({status:z.literal('signed_out')}),{method:'POST',body:'{}'},{status:'signed_out'});}finally{this.session=null;}}
+
+  async rotateSession(){await this.request('/api/session/rotate',z.object({status:z.literal('rotated')}),{method:'POST',body:'{}'});await this.getSession();}
   async getSession(_mode?:AppMode){this.session=await this.request(this.path('session'),SessionSchema);return structuredClone(this.session);}
   async getPatients(){if(!this.session)throw new DataError('forbidden','Load authenticated session first');const list=await this.request(this.path('patients'),z.array(PatientSchema),{},[]);if(!this.session)throw new DataError('forbidden','Load authenticated session first');if(list.some(p=>!this.session!.patientIds.includes(p.id)))throw new DataError('forbidden','API returned a patient outside authenticated session scope');return list;}
   async getPatient(id:string){this.allowed(id);try{const p=await this.request(this.path('patient',id),PatientSchema);if(p.id!==id)throw new DataError('invalid_data','Patient ID mismatch');return p;}catch(e){if(e instanceof DataError&&e.status===404)return null;throw e;}}
